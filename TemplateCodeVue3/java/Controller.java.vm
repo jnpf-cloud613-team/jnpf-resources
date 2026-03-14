@@ -1,0 +1,189 @@
+#parse("PublicMacro/ControllerMarco.vm")
+package ${package.Controller};
+#set($peimaryKeyName = "${pKeyName.substring(0,1).toUpperCase()}${pKeyName.substring(1)}")
+#set($peimaryKeyname = "${pKeyName.substring(0,1).toLowerCase()}${pKeyName.substring(1)}")
+#set($serviceName = "${table.serviceName.substring(0,1).toLowerCase()}${table.serviceName.substring(1)}")
+#set($Name = "${genInfo.className.substring(0,1).toUpperCase()}${genInfo.className.substring(1)}")
+#set($name = "${genInfo.className.substring(0,1).toLowerCase()}${genInfo.className.substring(1)}")
+#set($packName = "${genInfo.className.toLowerCase()}")
+#set($searchListSize =$!{searchList})
+#set($columnListSize=$!{columnList})
+
+#set($serverHasUpload = false)
+#set($serverHasDownload = false)
+#foreach($btn in ${btnsList})
+    #if(${btn.value}=='upload' && ${btn.show})
+        #set($serverHasUpload = true)
+    #end
+    #if(${btn.value}=='download' && ${btn.show})
+        #set($serverHasDownload = true)
+    #end
+#end
+
+import cn.hutool.core.util.ObjectUtil;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jnpf.base.ActionResult;
+import jnpf.base.UserInfo;
+import jnpf.constant.FileTypeConstant;
+import jnpf.exception.DataException;
+import jnpf.permission.entity.UserEntity;
+import jnpf.constant.MsgCode;
+import ${package.Service}.*;
+import ${package.Entity}.*;
+import jnpf.util.*;
+import ${modulePackageName}.model.${packName}.*;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.dromara.x.file.storage.core.FileInfo;
+import org.springframework.web.bind.annotation.*;
+#if(${springVersion.startsWith("2")})
+import javax.validation.Valid;
+#else
+import jakarta.validation.Valid;
+#end
+import java.util.*;
+import jnpf.model.ExcelModel;
+import jnpf.excel.ExcelExportStyler;
+import jnpf.excel.ExcelHelper;
+#if($isList)
+import jnpf.annotation.JnpfField;
+import jnpf.base.vo.PageListVO;
+import jnpf.base.vo.PaginationVO;
+import jnpf.base.vo.DownloadVO;
+import jnpf.base.entity.ProvinceEntity;
+import java.util.stream.Collectors;
+import jnpf.flowable.entity.TaskEntity;
+import jnpf.exception.WorkFlowException;
+import jnpf.model.visualjson.UploaderTemplateModel;
+import jnpf.base.util.FormExecelUtils;
+#end
+#if(${serverHasUpload} || ${serverHasDownload})
+import org.springframework.web.multipart.MultipartFile;
+import cn.afterturn.easypoi.excel.ExcelExportUtil;
+import cn.afterturn.easypoi.excel.ExcelImportUtil;
+import cn.afterturn.easypoi.excel.entity.ExportParams;
+import cn.afterturn.easypoi.excel.entity.ImportParams;
+import cn.afterturn.easypoi.excel.entity.params.ExcelExportEntity;
+import cn.afterturn.easypoi.excel.entity.enmus.ExcelType;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Workbook;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import jnpf.onlinedev.model.ExcelImFieldModel;
+import jnpf.base.model.online.ImportDataModel;
+import jnpf.base.model.online.ImportFormCheckUniqueModel;
+import jnpf.base.model.online.ExcelImportModel;
+import jnpf.base.model.online.VisualImportModel;
+import lombok.Cleanup;
+import jnpf.model.visualjson.config.HeaderModel;
+import jnpf.base.model.ColumnDataModel;
+import jnpf.base.util.VisualUtils;
+#end
+#if(${DS})
+import com.baomidou.dynamic.datasource.annotation.DSTransactional;
+#else
+import org.springframework.transaction.annotation.Transactional;
+#end
+#if(${isCloud}=="cloud")
+import jnpf.config.ConfigValueUtil;
+import jnpf.model.upload.UploadFileModel;
+import jnpf.file.FileApi;
+import jnpf.constant.FileTypeConstant;
+import java.io.ByteArrayOutputStream;
+import jnpf.file.FileUploadApi;
+import org.apache.dubbo.config.annotation.DubboReference;
+#end
+
+/**
+ * ${genInfo.description}
+ * @版本： ${genInfo.version}
+ * @版权： ${genInfo.copyright}
+ * @作者： ${genInfo.createUser}
+ * @日期： ${genInfo.createDate}
+ */
+@Slf4j
+@RestController
+@RequiredArgsConstructor
+@Tag(name = "${genInfo.description}" , description = "${module}")
+#if(${isCloud}=="cloud")
+#if(${module}=="form")
+@RequestMapping("/${module}/${genInfo.className}")
+#else
+@RequestMapping("/${genInfo.className}")
+#end
+#else
+#if(${module}=="form")
+##添加流程表单模块名称
+@RequestMapping("/api/workflow/${module}/${genInfo.className}")
+#else
+@RequestMapping("/api/${module}/${genInfo.className}")
+#end
+#end
+public class ${table.controllerName} {
+
+    private ${Name}Constant paramConst = ${Name}Constant.get();
+
+    private final GeneraterSwapUtil generaterSwapUtil;
+    private final ${table.serviceName} ${serviceName};
+    #foreach($tableModel in ${childTableHandle})
+    private final ${tableModel.aliasUpName}Service ${tableModel.aliasLowName}Service;
+    #end
+    #foreach($cl in  ${columnTableHandle})
+    private final ${cl.modelUpName}Service ${cl.modelLowName}Service;
+    #end
+#if(${serverHasUpload} || ${serverHasDownload})
+    #if(${isCloud}=="cloud")
+    private final ConfigValueUtil configValueUtil;
+    private final FileUploadApi fileUploadApi;
+    private final FileApi fileApi;
+    #end
+#end
+##表头按钮接口
+#if(!${isList})##  纯表单方法
+    #CreateMethod()
+    #UpdateMethod()
+    #DeleteMethod()
+#else##   列表方法
+##  获取列表信息
+#GetList()
+##  表头按键接口
+#foreach($btn in ${btnsList})
+#if(${btn.value}=='add' && ${btn.show})
+    #CreateMethod()
+#end
+#if(${btn.value}=='upload' && ${btn.show})
+    #UploaderMethod()
+#end
+#if(${btn.value}=='download' && ${btn.show})
+    #ExportMethod()
+#end
+#if(${btn.value}=='batchRemove' && ${btn.show})
+#end
+#if(${btn.value}=='batchPrint' && ${btn.show})
+    #BatchPrintMethod()
+#end
+#end
+##  删除全部走批量删除方法。(必生成)
+    #DeleteMethod()
+    #BatchRemoveMethod()
+##  行内按钮接口
+#foreach($column in ${columnBtnsList})
+#if(${column.value}=='detail' && ${column.show} && ${isList})
+    #GetDetailMethod()
+#end
+#if(${column.value}=='remove' && ${column.show} && ${isList})
+##    #DeleteMethod()
+#end
+#if(${column.value}=='edit' && ${column.show} && ${isList})
+    #UpdateMethod()
+#end
+#end
+#end
+##  获取数据接口（不转换数据）
+    #GetInfoMethod()
+
+}

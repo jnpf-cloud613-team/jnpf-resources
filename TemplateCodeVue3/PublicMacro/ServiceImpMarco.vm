@@ -1,0 +1,1033 @@
+##通用参数
+#parse("PublicMacro/ConstantMarco.vm")
+#ConstantParams()
+#set($mapObject ="Map<String, Object>")
+##创建QueryWrapper
+#macro(CreateWrapper)
+        MPJLambdaWrapper<${Entity}> wrapper = JoinWrappers
+            #foreach($item in $allTableNameList)
+                #set($TableEntity = "${item.table.substring(0,1).toUpperCase()}${item.table.substring(1)}")
+                #if(${item.tableTag} =='main')
+                #set($mainRelTable = "${item.initName}")
+                .lambda("${item.initName}",${TableEntity}Entity.class)
+                #end
+                #if(${item.tableTag} =='sub-jnpf')
+                .selectAssociation(${TableEntity}Entity.class,${Entity}::get${TableEntity})
+                .leftJoin(${TableEntity}Entity.class,"${item.initName}",
+                    #if($logicalDelete)
+                        t-> t.eq(${TableEntity}Entity::get${item.tableField},${Entity}::get${item.relationField})
+                        .isNull(${TableEntity}Entity::getDeleteMark)
+                    #else
+                        ${TableEntity}Entity::get${item.tableField},${Entity}::get${item.relationField}
+                    #end
+                )
+                #end
+                #if(${item.tableTag} =='sub')
+                .selectCollection(${TableEntity}Entity.class,${Entity}::get${TableEntity})
+                .leftJoin(${TableEntity}Entity.class,"${item.initName}",
+                    #if($logicalDelete)
+                    t-> t.eq(${TableEntity}Entity::get${item.tableField},${Entity}::get${item.relationField})
+                    .isNull(${TableEntity}Entity::getDeleteMark)
+                    #else
+                        ${TableEntity}Entity::get${item.tableField},${Entity}::get${item.relationField}
+                    #end
+                )
+                #end
+            #end
+                .selectAll(${Name}Entity.class);
+#end
+##创建QueryWrapper2
+#macro(CreateWrapper2)
+        MPJLambdaWrapper<${Entity}> wrapper2 = JoinWrappers
+            #foreach($item in $allTableNameList)
+                #set($TableEntity = "${item.table.substring(0,1).toUpperCase()}${item.table.substring(1)}")
+                #if(${item.tableTag} =='main')
+                .lambda("${item.initName}",${TableEntity}Entity.class)
+                #end
+                #if(${item.tableTag} =='sub-jnpf')
+                .leftJoin(${TableEntity}Entity.class,"${item.initName}",
+                    #if($logicalDelete)
+                    t-> t.eq(${TableEntity}Entity::get${item.tableField},${Entity}::get${item.relationField})
+                    .isNull(${TableEntity}Entity::getDeleteMark)
+                    #else
+                        ${TableEntity}Entity::get${item.tableField},${Entity}::get${item.relationField}
+                    #end
+                )
+                #end
+                #if(${item.tableTag} =='sub')
+                .leftJoin(${TableEntity}Entity.class,"${item.initName}",
+                    #if($logicalDelete)
+                    t-> t.eq(${TableEntity}Entity::get${item.tableField},${Entity}::get${item.relationField})
+                    .isNull(${TableEntity}Entity::getDeleteMark)
+                    #else
+                        ${TableEntity}Entity::get${item.tableField},${Entity}::get${item.relationField}
+                    #end
+                )
+                #end
+            #end
+                .distinct().select(${Name}Entity::get${peimaryKeyName});
+#end
+##权限查询条件拼接
+#macro(CreateDataPermission $menuIdModel)
+    boolean pcPermission = ${pcDataPermisson};
+    boolean appPermission = ${appDataPermisson};
+    if(isPc && pcPermission){
+        if (!UserProvider.getUser().getIsAdministrator()){
+        #foreach($child in ${allTableNameList})
+            #set($ModelName= "${child.table.substring(0,1).toUpperCase()}${child.table.substring(1)}")
+            #set($modelName ="${child.table.substring(0,1).toLowerCase()}${child.table.substring(1)}")
+            #set($modelNum = "${modelName}Num")
+            #set($initName = "${child.initName}")
+            #set($modelQueryWrapper = "${modelName}QueryWrapper")
+            #if(!${child.tableField})
+                Object ${modelName}Obj=generaterSwapUtil.getAuthorizeCondition(new QueryModel(${modelQueryWrapper},${ModelName}Entity.class,${menuIdModel}.getMenuId(),#if(${DS})"${DS}"#else"0"#end));
+                if (ObjectUtil.isEmpty(${modelName}Obj)){
+                    return new ArrayList<>();
+                } else {
+                    ${modelQueryWrapper} = (QueryWrapper<${ModelName}Entity>)${modelName}Obj;
+                }
+            #end
+        #end
+        }
+    }
+    if(!isPc && appPermission){
+        if (!UserProvider.getUser().getIsAdministrator()){
+        #foreach($child in ${allTableNameList})
+            #set($ModelName= "${child.table.substring(0,1).toUpperCase()}${child.table.substring(1)}")
+            #set($modelName ="${child.table.substring(0,1).toLowerCase()}${child.table.substring(1)}")
+            #set($modelNum = "${modelName}Num")
+            #set($modelQueryWrapper = "${modelName}QueryWrapper")
+            #if($child.tableTag =='main')
+            Object ${modelName}Obj=generaterSwapUtil.getAuthorizeCondition(new QueryModel(${modelQueryWrapper},${ModelName}Entity.class,${menuIdModel}.getMenuId(),#if(${DS})"${DS}"#else"0"#end));
+            if (ObjectUtil.isEmpty(${modelName}Obj)){
+                return new ArrayList<>();
+            } else {
+                ${modelQueryWrapper} = (QueryWrapper<${ModelName}Entity>)${modelName}Obj;
+            }
+            #end
+
+        #end
+        }
+    }
+#end
+##普通查询条件拼接
+#macro(PaginationSerach)
+    #if($groupModels.size()>0)
+        if(isPc){
+        #foreach($Group in ${groupModels})
+            #set($ModelName= "${Group.modelName.substring(0,1).toUpperCase()}${Group.modelName.substring(1)}")
+            #set($ModelNameEntity = "${ModelName}Entity")
+            #set($modelName ="${Group.modelName.substring(0,1).toLowerCase()}${Group.modelName.substring(1)}")
+            #set($modelQueryWrapper ="wrapper")
+            #set($modelNum = "${modelName}Num")
+            #set($ForeignKey =${Group.ForeignKey})
+            #PaginationQuery(${Group.searchTypeModelList},${modelQueryWrapper},${ModelNameEntity},${modelNum})
+        #end
+        }
+    #end
+    #if($groupAppModels.size()>0)
+        if(!isPc){
+        #foreach($appGroup in ${groupAppModels})
+            #set($ModelName= "${appGroup.modelName.substring(0,1).toUpperCase()}${appGroup.modelName.substring(1)}")
+            #set($ModelNameEntity = "${ModelName}Entity")
+            #set($modelName ="${appGroup.modelName.substring(0,1).toLowerCase()}${appGroup.modelName.substring(1)}")
+            #set($modelQueryWrapper ="wrapper")
+            #set($modelNum = "${modelName}Num")
+            #set($ForeignKey =${appGroup.ForeignKey})
+            #PaginationQuery(${appGroup.searchTypeModelList},${modelQueryWrapper},${ModelNameEntity},${modelNum})
+        #end
+        }
+    #end
+#end
+##普通查询条件拼接
+#macro(PaginationQuery $searchListSizes $queryWrapper $ModelNameEntity,$modelNum)
+    #if($searchListSizes)
+        #foreach($SearchTypeModel in ${searchListSizes})
+            #set($vModelName = "${SearchTypeModel.afterVModel}")
+            #set($fieldAliasName = "${SearchTypeModel.afterVModel}")
+            #set($tableAliasName = "${SearchTypeModel.tableAliasName}")
+            #if($SearchTypeModel.id.contains("_jnpf_"))
+                #set($fieldAliasName = "jnpf_${tableAliasName}_jnpf_${vModelName}")
+            #elseif($SearchTypeModel.id.toLowerCase().startsWith("tablefield"))
+                #set($fieldAliasName = "${tableAliasName}_${vModelName}")
+            #end
+            #set($fieldName = "${vModelName.substring(0,1).toUpperCase()}${vModelName.substring(1)}")
+            #set($paginationName ="${fieldAliasName.substring(0,1).toUpperCase()}${fieldAliasName.substring(1)}")
+            if(ObjectUtil.isNotEmpty(${name}Pagination.get${paginationName}())){
+            #if(${SearchTypeModel.searchType}==1)
+                #set($jnpfKey=${SearchTypeModel.jnpfKey})
+    ##                多选统一处理
+                #MultipleHandle("${name}Pagination")
+            #elseif(${SearchTypeModel.searchType}==2)
+                String value = ${name}Pagination.get${paginationName}() instanceof List ?
+                    JsonUtil.getObjectToString(${name}Pagination.get${paginationName}()) :
+                    String.valueOf(${name}Pagination.get${paginationName}());
+                ${queryWrapper}.like(${ModelNameEntity}::get${fieldName},value);
+            #elseif(${SearchTypeModel.searchType}==3)
+                List<String> jsonList =  JsonUtil.getJsonToList(${name}Pagination.get${paginationName}(),String.class);
+                for(int i=0;i<jsonList.size();i++){
+                    String id = String.valueOf(jsonList.get(i));
+                    boolean idAll = StringUtil.isNotEmpty(id) && !id.equals("null");
+                    if(idAll){
+                        #set($dataValues= "id;")
+                        #if(${SearchTypeModel.jnpfKey}=="dateTime" || ${SearchTypeModel.jnpfKey}=='datePicker' || ${SearchTypeModel.jnpfKey}=="createTime" || ${SearchTypeModel.jnpfKey}=="modifyTime")
+                            #set($dataValues= "new Date(Long.valueOf(id));")
+                        #elseif(${SearchTypeModel.jnpfKey}=="inputNumber" || ${SearchTypeModel.jnpfKey}=="calculate")
+                            #set($dataValues= "new BigDecimal(id);")
+                        #end
+                        Object b= ${dataValues}
+                        if(i==0){
+                            ${queryWrapper}.ge(${ModelNameEntity}::get${fieldName},b);
+                        }else{
+                            ${queryWrapper}.le(${ModelNameEntity}::get${fieldName},b);
+                        }
+                    }
+                }
+            #end
+            }
+
+        #end
+    #end
+#end
+##多选统一处理
+#macro(MultipleHandle $pagination)
+        #if(${multipleUnit.contains(${jnpfKey})})
+            List<String> idList = new ArrayList<>();
+                try {
+                    String[][] ${vModelName} = JsonUtil.getJsonToBean(${pagination}.get${paginationName}(),String[][].class);
+                    for(int i=0;i<${vModelName}.length;i++){
+                        if(${vModelName}[i].length>0){
+                            idList.add(JsonUtil.getObjectToString(Arrays.asList(${vModelName}[i])));
+                        }
+                    }
+                }catch (Exception e1){
+                    try {
+                        List<String> ${vModelName} = JsonUtil.getJsonToList(${pagination}.get${paginationName}(),String.class);
+                        if(!${vModelName}.isEmpty()){
+                        #if(${multipleTwoUnit.contains(${jnpfKey})})
+                            idList.add(JsonUtil.getObjectToString(${vModelName}));
+                        #else
+                            idList.addAll(${vModelName});
+                        #end
+                        }
+                    }catch (Exception e2){
+                        idList.add(String.valueOf(${pagination}.get${paginationName}()));
+                    }
+                }
+                ${queryWrapper}.and(t->{
+                    idList.forEach(tt->{
+                        if(StringUtil.isNotEmpty(tt) && "Microsoft SQL Server".equalsIgnoreCase(databaseName)){
+                            tt = tt.replaceFirst("\\[","[[]");
+                        }
+                        t.like(${ModelNameEntity}::get${fieldName}, tt).or();
+                    });
+                });
+        #else
+            ${queryWrapper}.eq(${ModelNameEntity}::get${fieldName},${pagination}.get${paginationName}());
+        #end
+#end
+##关键词搜索
+#macro(JnpfKeywordSerach)
+        if(ObjectUtil.isNotEmpty(${name}Pagination.getJnpfKeyword())){
+            #if($!{keywordModels})
+            if(isPc){
+                wrapper.and(t -> {
+                #foreach($Group in ${groupModels})
+                    #set($ModelName= "${Group.modelName.substring(0,1).toUpperCase()}${Group.modelName.substring(1)}")
+                    #set($ModelNameEntity = "${ModelName}Entity")
+                    #foreach($item in ${Group.searchTypeModelList})
+                        #if($item.afterVModel)
+                            #set($vModelName = $item.afterVModel)
+                        #else
+                            #set($vModelName = $item.id)
+                        #end
+                        #set($fieldName = "${vModelName.substring(0,1).toUpperCase()}${vModelName.substring(1)}")
+                    #if(${item.isKeyword})
+                    t.like(${ModelName}Entity::get${fieldName},${name}Pagination.getJnpfKeyword()).or();
+                    #end
+                    #end
+                #end
+                });
+            }
+            #end
+            #if($!{keywordAppModels})
+            if(!isPc){
+                wrapper.and(t -> {
+                #foreach($Group in ${groupAppModels})
+                    #set($ModelName= "${Group.modelName.substring(0,1).toUpperCase()}${Group.modelName.substring(1)}")
+                    #set($ModelNameEntity = "${ModelName}Entity")
+                    #foreach($item in ${Group.searchTypeModelList})
+                        #if($item.afterVModel)
+                            #set($vModelName = $item.afterVModel)
+                        #else
+                            #set($vModelName = $item.id)
+                        #end
+                        #set($fieldName = "${vModelName.substring(0,1).toUpperCase()}${vModelName.substring(1)}")
+                    #if(${item.isKeyword})
+                    t.like(${ModelName}Entity::get${fieldName},${name}Pagination.getJnpfKeyword()).or();
+                    #end
+                    #end
+                #end
+                });
+
+            }
+            #end
+        }
+#end
+##获取系统参数
+#macro(GetSystemData $isSave $chidKeyName)
+            #if(${systemJnpfKey.contains(${key})})
+            #set($opFlag = true)
+            #if((${key}=='createUser' && !$isSave)
+                ||(${key}=='createTime' && !$isSave)
+                ||(${key}=='modifyUser' && $isSave)
+                ||(${key}=='modifyTime' && $isSave)
+                ||(${key}=='currOrganize' && !$isSave)
+                ||(${key}=='currPosition' && !$isSave))
+                #set($opFlag = false)
+            #end
+            #if($isFlow && $opFlag)
+                if(hasOperate.contains("${realVmodel}") || noOperate){
+            #end
+            #if(${key}=='createUser')
+                #if($isSave)
+                    ${nameEntity}.set${model}(userInfo.getUserId());
+                #else
+                    ${nameEntity}.set${model}(null);
+                #end
+            #elseif(${key}=='createTime')
+                #if($isSave)
+                    ${nameEntity}.set${model}(DateUtil.getNowDate());
+                #else
+                    ${nameEntity}.set${model}(null);
+                #end
+            #elseif(${key}=='modifyUser')
+                #if($isSave)
+                    ${nameEntity}.set${model}(null);
+                #else
+                    ${nameEntity}.set${model}(userInfo.getUserId());
+                #end
+            #elseif(${key}=='modifyTime')
+                #if($isSave)
+                    ${nameEntity}.set${model}(null);
+                #else
+                    ${nameEntity}.set${model}(DateUtil.getNowDate());
+                #end
+            #elseif(${key}=='currOrganize')
+                #if($isSave)
+                    ${nameEntity}.set${model}(JsonUtil.getObjectToString(userInfo.getOrganizeIds()));
+                #else
+                    ${nameEntity}.set${model}(null);
+                #end
+            #elseif(${key}=='currPosition')
+                #if($isSave)
+                    ${nameEntity}.set${model}(JsonUtil.getObjectToString(userInfo.getPositionIds()));
+                #else
+                    ${nameEntity}.set${model}(null);
+                #end
+            #elseif(${key}=='billRule')
+                #set($billMethodName = "${constantVmodel.substring(0,1).toUpperCase()}${constantVmodel.substring(1)}")
+                #if($isSave)
+                    #if($config.ruleType == 2)
+                        ${nameEntity}.set${model}(generaterSwapUtil.getBillNumber2("${VisualDevId}","${config.formId}",paramConst.get${billMethodName}(),  ${name}Form));
+                    #else
+                        ${nameEntity}.set${model}(generaterSwapUtil.getBillNumber("${rule}", false));
+                    #end
+                #else
+                    if(StringUtil.isEmpty(${nameEntity}.get${model}()) #if(${chidKeyName})|| ${nameEntity}.get${chidKeyName}() == null #end){
+                        #if($config.ruleType == 2)
+                        ${nameEntity}.set${model}(generaterSwapUtil.getBillNumber2("${VisualDevId}","${config.formId}",paramConst.get${billMethodName}(),  ${name}Form));
+                        #else
+                        ${nameEntity}.set${model}(generaterSwapUtil.getBillNumber("${rule}", false));
+                        #end
+                    }
+                #end
+            #end
+            #if($isFlow && $opFlag)
+                }
+            #end
+            #end
+#end
+##  正则验证方法
+#macro(RegMethod $jnpfKey,$param $config)
+    #if(!${lineEdit})
+    #if($jnpfKey == 'input' && ${config.regList} && ${config.regList.size()}>0)
+        if(StringUtil.isNotEmpty($param)){
+        #foreach($regItem in ${config.regList})
+            #set($pattern=$regItem.pattern.replace("\","\\").replace("/",""))
+            if(!Pattern.compile("$pattern").matcher(String.valueOf($param)).matches()){
+            return #if(${regItem.messageI18nCode})I18nUtil.getMessageStr("${regItem.messageI18nCode}", "${regItem.message}"); #else "${regItem.message}"; #end
+            }
+        #end
+        }
+    #end
+    #end
+#end
+##########################以上为宏调用，以下为实际方法##########################
+##  列表接口
+#macro(GetTypeList)
+    @Override
+    public List<${Entity}> getList(${Name}Pagination ${name}Pagination){
+        return getTypeList(${name}Pagination,${name}Pagination.getDataType());
+    }
+    /** 列表查询 */
+    @Override
+    public List<${Entity}> getTypeList(${Name}Pagination ${name}Pagination,String dataType){
+        String userId=UserProvider.getUser().getUserId();
+        Map<String,Class> tableClassMap=new HashMap<>();
+        #foreach($item in $allTableNameList)
+        #set($TableEntity = "${item.table.substring(0,1).toUpperCase()}${item.table.substring(1)}")
+        tableClassMap.put("${item.initName}",${TableEntity}Entity.class);
+        #end
+
+##      生成MPJLambdaWrapper对象
+        #CreateWrapper()
+        #CreateWrapper2()
+##      流程状态相关代码添加
+        #if($isFlow)
+        //流程状态相关代码添加
+        wrapper.orderByAsc(${Entity}::getFlowState);
+        if (${name}Pagination.getJnpfFlowState() != null) {
+            wrapper.eq(${Entity}::getFlowState, ${name}Pagination.getJnpfFlowState());
+            wrapper2.eq(${Entity}::getFlowState, ${name}Pagination.getJnpfFlowState());
+        }
+        #end
+
+        QueryAllModel queryAllModel = new QueryAllModel();
+        queryAllModel.setWrapper(wrapper);
+        queryAllModel.setClassMap(tableClassMap);
+        queryAllModel.setDbLink(paramConst.getDbLinkId());
+##  数据过滤
+        //数据过滤
+        boolean isPc = ServletUtil.getHeader("jnpf-origin").equals("pc");
+        String ruleJson = !isPc ? JsonUtil.getObjectToString(paramConst.getRuleListApp()) : JsonUtil.getObjectToString(paramConst.getRuleList());
+        queryAllModel.setRuleJson(ruleJson);
+##  高级查询
+        //高级查询
+        boolean hasSuperQuery = #if($superQuery) true#else false#end;
+        if (hasSuperQuery) {
+            queryAllModel.setSuperJson(${name}Pagination.getSuperQueryJson());
+        }
+##  数据权限
+        //数据权限
+        boolean pcPermission = ${pcDataPermisson};
+        boolean appPermission = ${appDataPermisson};
+        if (isPc && pcPermission) {
+            queryAllModel.setModuleId(${name}Pagination.getMenuId());
+        }
+        if (!isPc && appPermission) {
+            queryAllModel.setModuleId(${name}Pagination.getMenuId());
+        }
+        //拼接复杂条件
+        wrapper = generaterSwapUtil.getConditionAllTable(queryAllModel);
+        if(wrapper == null) return new ArrayList<>();
+        queryAllModel.setWrapper(wrapper2);
+        wrapper2 = generaterSwapUtil.getConditionAllTable(queryAllModel);
+##  普通查询
+        //其他条件拼接
+        otherConditions(${name}Pagination, wrapper, isPc);
+        otherConditions(${name}Pagination, wrapper2, isPc);
+
+    #if(${groupTable} == true || ${treeTable} == true  || ${hasPage} == false)
+        //分组和树形生成这个代码,pc端返回全部数据  !"2".equals(dataType)导出选中数据
+        if(isPc && !"2".equals(dataType)){
+            dataType = "1";
+        }
+    #end
+        if("0".equals(dataType)){
+            com.github.pagehelper.Page<Object> objects = PageMethod.startPage((int) ${name}Pagination.getCurrentPage(), (int) ${name}Pagination.getPageSize(), true);
+            List<${Entity}> userIPage = this.selectJoinList(${Entity}.class, wrapper2);
+            List<Object> collect = userIPage.stream().map(t -> t.get${peimaryKeyName}()).collect(Collectors.toList());
+            if(CollectionUtils.isNotEmpty(collect)){
+                wrapper.in(${Entity}::get${peimaryKeyName},collect);
+            }
+            List<${Entity}> result = this.selectJoinList(${Entity}.class, wrapper);
+            return ${name}Pagination.setData(result,objects.getTotal());
+        }else{
+            List<${Entity}> list = this.selectJoinList(${Entity}.class, wrapper);
+            if("2".equals(dataType)){
+                List<Object> selectIds = Arrays.asList(${name}Pagination.getSelectIds());
+                return list.stream().filter(t -> selectIds.contains(t.get$peimaryKeyName())).collect(Collectors.toList());
+            }else{
+                return list;
+            }
+        }
+
+    }
+
+    /**
+    * 其他条件拼接
+    */
+    private void otherConditions(${Name}Pagination ${name}Pagination, MPJLambdaWrapper<${Entity}> wrapper, boolean isPc) {
+        String databaseName;
+        try {
+            @Cleanup Connection cnn = DynamicDataSourceUtil.getCurrentConnection();
+            databaseName = cnn.getMetaData().getDatabaseProductName().trim();
+        } catch (SQLException e) {
+            throw new DataException(e.getMessage());
+        }
+        #if($logicalDelete)
+        //假删除标志
+        wrapper.isNull(${Entity}::getDeleteMark);
+
+        #end
+        #if($isFlow)
+        //流程数据隔离
+        List<String> flowIds = generaterSwapUtil.getFlowIds(${name}Pagination.getFlowId());
+        wrapper.in(${Entity}::getFlowId,flowIds);
+        #else
+        wrapper.isNull(${Entity}::getFlowId);
+        #end
+        //关键词
+        #JnpfKeywordSerach()
+        //普通查询
+        #PaginationSerach()
+        //排序
+        if(StringUtil.isEmpty(${name}Pagination.getSidx())){
+            #if(${defaultSidx})
+                #set($model = "${defaultSidx.substring(0,1).toUpperCase()}${defaultSidx.substring(1)}")
+                #set($Sort = "${sort.substring(0,1).toUpperCase()}${sort.substring(1)}")
+                wrapper.orderBy${Sort}(${Entity}::get${model});
+            #else
+                wrapper.orderByDesc(${Entity}::get${peimaryKeyName});
+            #end
+        }else{
+            try {
+                String[] split = ${name}Pagination.getSidx().split(",");
+                List<Select> selectColumns = new ArrayList<>(wrapper.getSelectColumns());
+                for(String sidx:split){
+                ${Entity} ${name}Entity = new ${Entity}();
+                    String oderTableField = ${name}Entity.getClass().getAnnotation(TableName.class).value();
+                    boolean descFlag = sidx.startsWith("-");
+                    String sidxField = descFlag ? sidx.substring(1) : sidx;
+                    String finalOderTableField = oderTableField;
+                    String finalSidxField = sidxField;
+                    Object select = selectColumns.stream().filter(t -> Objects.equals(finalOderTableField, t.getTableAlias())
+                            && Objects.equals(finalSidxField, t.getColumn())).findFirst().orElse(null);
+                    oderTableField = oderTableField + "." + sidxField;
+                    if (select == null) {
+                        wrapper.select(oderTableField);
+                    }
+                    if (descFlag) {
+                        wrapper.orderByDesc(oderTableField);
+                    } else {
+                        wrapper.orderByAsc(oderTableField);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+#end
+##  增删改查接口
+#macro(CrudMethod)
+    @Override
+    public ${Entity} getInfo(String ${peimaryKeyname}){
+##      生成MPJLambdaWrapper对象
+        #CreateWrapper()
+        wrapper.and(
+            t->t.eq(${Entity}::get${peimaryKeyName}, #if($snowflake)${peimaryKeyname} #else Long.parseLong(${peimaryKeyname})#end)
+            .or().eq(${Entity}::getFlowTaskId, ${peimaryKeyname})
+        );
+        return this.selectJoinOne(${Entity}.class,wrapper);
+    }
+    @Override
+    public void create(${Entity} entity){
+        this.save(entity);
+    }
+    @Override
+    public boolean update(String ${peimaryKeyname}, ${Entity} entity){
+        return this.updateById(entity);
+    }
+    @Override
+    public void delete(${Entity} entity){
+        if(entity!=null){
+            this.removeById(entity.get${peimaryKeyName}());
+        }
+    }
+#end
+##  表单验证
+#macro(CheckForm)
+    /** 验证表单唯一字段，正则，非空 i-0新增-1修改*/
+    @Override
+    public String checkForm(${Name}Form form,int i) {
+        #if(${isFlow})
+        List<String> flowIds = generaterSwapUtil.getFlowIds(form.getFlowId());
+        #end
+        boolean isUp =StringUtil.isNotEmpty(form.get${peimaryKeyName}()) && !form.get${peimaryKeyName}().equals("0");
+        Object id= null;
+        String countRecover = "";
+        String fieldTipName = "";
+        String canNotNull = I18nUtil.getMessageStr("sys.validate.textRequiredSuffix", "不能为空");
+        String canNotRepeated = I18nUtil.getMessageStr("EXIST103", "不能重复");
+        if (isUp){
+        #if($snowflake)
+            id = form.get${peimaryKeyName}();
+        #else
+            id = Long.parseLong(form.get${peimaryKeyName}());
+        #end
+        }
+##      验证业务主键
+    #if(${useBusinessKey})
+        //验证业务主键
+        String businessErr = checkBusinessKey(form, isUp ? id : null,#if($isFlow)flowIds#else null#end);
+        if (StringUtil.isNotEmpty(businessErr)) {
+            return businessErr;
+        }
+    #end
+##      主表字段验证
+        //主表字段验证
+        #foreach($mastField in ${mastTableHandle})
+            #set($Field = $mastField)
+            #set($config = $Field.config)
+            #set($unique = $config.unique)
+            #set($required = $config.required)
+            #set($jnpfKey = $config.jnpfKey)
+            #set($vModel = ${Field.vModel})
+            #set($upName = "${Field.fieldAlias.substring(0,1).toUpperCase()}${Field.fieldAlias.substring(1)}")
+            #if($jnpfKey == 'input' && (($required ==true && !${lineEdit}) || $unique ==true || (${config.regList} && ${config.regList.size()}>0)))
+                fieldTipName = #if(${config.labelI18nCode}) I18nUtil.getMessageStr("${config.labelI18nCode}", "${config.label}"); #else "${config.label}"; #end
+            #end
+            #if($jnpfKey == 'input' && $required ==true && !${lineEdit})
+                if(StringUtil.isEmpty(form.get${upName}())){
+                    return fieldTipName + canNotNull;
+                }
+            #end
+            #if($jnpfKey == 'input' && $unique ==true)
+                if(StringUtil.isNotEmpty(form.get${upName}())){
+                    form.set${upName}(form.get${upName}()#if($jnpfKey == 'input').trim()#end);
+                    QueryWrapper<${Name}Entity> ${vModel}Wrapper=new QueryWrapper<>();
+                    ${vModel}Wrapper.lambda().eq(${Name}Entity::get${upName},form.get${upName}());
+                    #if(${isFlow})
+                        ${vModel}Wrapper.lambda().in(${Name}Entity::getFlowId, flowIds);
+                    #else
+                        ${vModel}Wrapper.lambda().isNull(${Name}Entity::getFlowId);
+                    #end
+                    #if($logicalDelete)
+                        //假删除标志
+                        ${vModel}Wrapper.lambda().isNull(${Name}Entity::getDeleteMark);
+                    #end
+                    if (isUp){
+                        ${vModel}Wrapper.lambda().ne(${Name}Entity::get${peimaryKeyName}, id);
+                    }
+                    if((int) this.count(${vModel}Wrapper)>0){
+                        countRecover = fieldTipName + canNotRepeated;
+                    }
+                }
+            #end
+##          正则判断
+                #RegMethod($jnpfKey,"form.get${upName}()",$config)
+        #end
+##      副表字段验证
+        #if(${columnTableHandle.size()}>0)
+        //副表字段验证
+        #foreach($cl in  ${columnTableHandle})
+            #set($columnTableName = "${cl.modelUpName}")
+            #set($columnTableName = "${cl.modelLowName}")
+            #foreach($clModel in ${cl.fieLdsModelList})
+            #set($fieLdsModel =  ${clModel.mastTable.fieLdsModel})
+            #set($config =  ${fieLdsModel.config})
+            #set($fileRenameUp = "${fieLdsModel.fieldAlias.substring(0,1).toUpperCase()}${fieLdsModel.fieldAlias.substring(1)}")
+            #set($fullName = "Jnpf_${fieLdsModel.tableAlias}_jnpf_${fieLdsModel.fieldAlias}")
+            #set($key =  ${config.jnpfKey})
+            #set($unique = $config.unique)
+            #set($required = $config.required)
+                #if($key =='input'  && (($required ==true && !${lineEdit}) || $unique ==true || (${config.regList} && ${config.regList.size()}>0)))
+                fieldTipName = #if(${config.labelI18nCode}) I18nUtil.getMessageStr("${config.labelI18nCode}", "${config.label}"); #else "${config.label}"; #end
+                #end
+            #if($required ==true && !${lineEdit})
+                if(#if($key =='input') StringUtil.isEmpty(form.get${fullName}()) #else form.get${fullName}() == null #end){
+                    return fieldTipName + canNotNull;
+                }
+            #end
+            #if($unique ==true)
+                if(#if($key =='input') StringUtil.isNotEmpty(form.get${fullName}())#else form.get${fullName}() ==null #end ){
+                    form.set${fullName}(form.get${fullName}()#if($key == 'input').trim()#end);
+                    MPJLambdaWrapper<${Name}Entity> ${cl.modelLowName}${fileRenameUp}Wrapper = new MPJLambdaWrapper<>(${Name}Entity.class)
+                            .leftJoin(${cl.modelUpName}Entity.class, ${cl.modelUpName}Entity::get${cl.relationUpField}, ${Name}Entity::get${cl.mainUpKey})
+                            .select(${Name}Entity::get${peimaryKeyName});
+                    #if(${isFlow})
+                    ${cl.modelLowName}${fileRenameUp}Wrapper.in(${Name}Entity::getFlowId, flowIds);
+                    #else
+                    ${cl.modelLowName}${fileRenameUp}Wrapper.isNull(${Name}Entity::getFlowId);
+                    #end
+                    #if($logicalDelete)
+                        //假删除标志
+                        ${cl.modelLowName}${fileRenameUp}Wrapper.isNull(${Name}Entity::getDeleteMark);
+                    #end
+                    ${cl.modelLowName}${fileRenameUp}Wrapper.eq(${cl.modelUpName}Entity::get${fileRenameUp},form.get${fullName}());
+                    if (isUp){
+                        ${cl.modelLowName}${fileRenameUp}Wrapper.ne(${cl.modelUpName}Entity::get${cl.relationUpField}, id);
+                    }
+                    if((int) this.count(${cl.modelLowName}${fileRenameUp}Wrapper)>0){
+                        countRecover = fieldTipName + canNotRepeated;
+                    }
+                }
+            #end
+##          正则判断
+                #RegMethod($key,"form.get${fullName}()",$config)
+            #end
+        #end
+        #end
+##      子表字段验证
+        #if(${childTableHandle.size()}>0)
+        //子表字段验证
+        #foreach($grid in ${childTableHandle})
+            if (form.get${grid.aliasUpName}List()!=null){
+            #foreach($jnpfkey in ${grid.childList})
+                #if(${jnpfkey.fieLdsModel.vModel} != '')
+                    #set($fieLdsModel = ${jnpfkey.fieLdsModel})
+                    #set($config = ${fieLdsModel.config})
+                    #set($key = ${config.jnpfKey})
+                    #set($model = "${fieLdsModel.fieldAlias.substring(0,1).toUpperCase()}${fieLdsModel.fieldAlias.substring(1)}")
+                    #set($unique = ${config.unique})
+                    #set($required = ${config.required})
+                    #if(($key =='input' && $unique ==true) || $required ==true || $unique ==true || ${config.regList})
+                        fieldTipName = #if(${grid.labelI18nCode}) I18nUtil.getMessageStr("${grid.labelI18nCode}", "${grid.label}")#else "${grid.label}" #end
+                        + "-" + #if(${config.labelI18nCode}) I18nUtil.getMessageStr("${config.labelI18nCode}", "${config.label}");#else "${config.label}"; #end
+                    #end
+                    #if($required ==true || $unique ==true || ${config.regList})
+                        for(${grid.aliasUpName}Model t : form.get${grid.aliasUpName}List()){
+                            if(#if($key =='input') StringUtil.isNotEmpty(t.get${model}()) #else t.get${model}() != null #end){
+                                t.set${model}(t.get${model}()#if($key == 'input').trim()#end);
+                            }
+                        #if($required ==true  && !${lineEdit})
+                            else{
+                                return fieldTipName + canNotNull;
+                            }
+                        #end
+##                      子表正则
+                            #RegMethod($key,"t.get${model}()",$config)
+                        }
+                    #end
+                    #if($key =='input' && $unique ==true)
+                        List<String> ${model}List = form.get${grid.aliasUpName}List().stream().filter(f->StringUtil.isNotEmpty(f.get${model}())).map(f -> f.get${model}()).collect(Collectors.toList());
+                        HashSet<String> ${model}Set = new HashSet<>(${model}List);
+                        if(${model}Set.size() != ${model}List.size()){
+                            countRecover = fieldTipName + canNotRepeated;
+                        }
+                    #end
+                #end
+            #end
+            }
+        #end
+        #end
+        return countRecover;
+    }
+#end
+
+#macro(CheckBusinessKey)
+    /**
+    * 验证业务主键
+    */
+    private String checkBusinessKey(${Name}Form form, Object id, List<String> flowIds){
+        QueryWrapper<${Name}Entity> wrapper = new QueryWrapper<>();
+        //修改
+        if (id != null){
+            wrapper.lambda().ne(${Name}Entity::get${peimaryKeyName}, id);
+        }
+        //是否流程
+        if(flowIds == null){
+            wrapper.lambda().isNull(${Name}Entity::getFlowId);
+        }else{
+            wrapper.lambda().in(${Name}Entity::getFlowId, flowIds);
+        }
+        #if($logicalDelete)
+            //假删除标志
+            wrapper.lambda().isNull(${Name}Entity::getDeleteMark);
+        #end
+        #set($notToJson=['inputNumber','input','textarea','radio','timePicker','createUser','modifyUser','location','currPosition'])
+        #foreach($item in ${businessKeyList})
+            #set($jnpfKey = $item.config.jnpfKey)
+            #set($fieldNameUp = "${item.fieldAlias.substring(0,1).toUpperCase()}${item.fieldAlias.substring(1)}")
+                //${item.config.label}字段判断
+            #if($jnpfKey == 'datePicker')
+                if(form.get${fieldNameUp}() == null || form.get${fieldNameUp}().trim().isEmpty()){
+                    wrapper.lambda().isNull(${Name}Entity::get${fieldNameUp});
+                }else{
+                    Object obj = new Date(Long.parseLong(form.get${fieldNameUp}()));
+                    wrapper.lambda().eq(${Name}Entity::get${fieldNameUp}, obj);
+                }
+            #elseif(${notToJson.contains(${jnpfKey})})
+                if(form.get${fieldNameUp}() == null || form.get${fieldNameUp}().toString().trim().isEmpty()){
+                    wrapper.lambda().isNull(${Name}Entity::get${fieldNameUp});
+                }else{
+                    wrapper.lambda().eq(${Name}Entity::get${fieldNameUp}, form.get${fieldNameUp}());
+                }
+            #else
+                if(form.get${fieldNameUp}() == null || form.get${fieldNameUp}().toString().trim().isEmpty()
+                    ||(form.get${fieldNameUp}() instanceof List && ((List) form.get${fieldNameUp}()).size() == 0)){
+                    wrapper.lambda().isNull(${Name}Entity::get${fieldNameUp});
+                }else{
+                    Object obj = form.get${fieldNameUp}() instanceof  List ?JsonUtil.getObjectToString(form.get${fieldNameUp}()):form.get${fieldNameUp}();
+                    wrapper.lambda().eq(${Name}Entity::get${fieldNameUp}, obj);
+                }
+            #end
+        #end
+        if((int) this.count(wrapper)>0){
+            return "${businessKeyTip}";
+        }
+        return "";
+    }
+#end
+##  保存或者修改事务方法
+#macro(SaveOrUpdate)
+    /**
+    * 新增修改数据(事务回滚)
+    * @param id
+    * @param ${name}Form
+    * @return
+    */
+    @Override
+    @DSTransactional
+    public void saveOrUpdate(${Name}Form ${name}Form,String id, boolean isSave){
+        #if($isFlow)
+        List<$mapObject> formOperates = ${name}Form.getFormOperates();
+        List<String> hasOperate = new ArrayList<>();
+        boolean noOperate = false;
+        if(CollectionUtils.isNotEmpty(formOperates)){
+            for ($mapObject formOperate : formOperates) {
+                String formOperateId = formOperate.get("id").toString();
+                boolean formOperateWrite = formOperate.get("write") ==null? false : (boolean) formOperate.get("write");
+                if(formOperateWrite){
+                    hasOperate.add(formOperateId);
+                }
+            }
+        }else{
+            noOperate = true;
+        }
+        #end
+        UserInfo userInfo=UserProvider.getUser();
+        UserEntity userEntity = generaterSwapUtil.getUser(userInfo.getUserId());
+        ${name}Form = JsonUtil.getJsonToBean(
+        GeneraterSwapUtil.swapDatetime(paramConst.getFields(),${name}Form,paramConst.getTableRenames()),${Name}Form.class);
+        ${Name}Entity entity = JsonUtil.getJsonToBean(${name}Form, ${Name}Entity.class);
+        #set($peimaryKeyName="${pKeyName.substring(0,1).toUpperCase()}${pKeyName.substring(1)}")
+        String mainUuid = StringUtil.isEmpty(id) ? RandomUtil.uuId() : id;
+        #if($isFlow)
+        entity.setFlowId(${name}Form.getFlowId());
+        #end
+##主表保存修改判断是否有系统控件
+#foreach($field in ${mastTableHandle})
+    #set($key = ${field.config.jnpfKey})
+    #if(${systemJnpfKey.contains(${key})})
+        #set($mainHasSysFields =true)
+    #end
+#end
+        if(isSave){
+            entity.setFlowState(0);
+            entity.setFlowTaskId(mainUuid);
+        #foreach($field in ${mastTableHandle})
+            #set($model = "${field.fieldAlias.substring(0,1).toUpperCase()}${field.fieldAlias.substring(1)}")
+            #set($key = ${field.config.jnpfKey})
+            #set($nameEntity = "entity")
+            #set($rule ="${field.config.rule}")
+            #set($showLevel ="${field.showLevel}")
+            #set($realVmodel ="${field.vModel}")
+            #set($config =${field.config})
+            #set($constantVmodel ="${field.vModel}")
+            #GetSystemData(true)
+        #end
+        #if($snowflake)
+            entity.set${peimaryKeyName}(mainUuid);
+        #end
+        #if($version)
+            #if(${versionType} == "bigint")
+            entity.setVersion(0l);
+            #else
+            entity.setVersion(0);
+            #end
+        #end
+        } else {
+        #foreach($field in ${mastTableHandle})
+            #set($model = "${field.fieldAlias.substring(0,1).toUpperCase()}${field.fieldAlias.substring(1)}")
+            #set($key = ${field.config.jnpfKey})
+            #set($nameEntity = "entity")
+            #set($rule ="${field.config.rule}")
+            #set($showLevel ="${field.showLevel}")
+            #set($realVmodel ="${field.vModel}")
+            #set($config =${field.config})
+            #set($constantVmodel ="${field.vModel}")
+            #GetSystemData(false)
+        #end
+        }
+        boolean b = this.saveOrUpdate(entity);
+    #if($version)
+        if(!b){
+            throw new DataException("当前表单原数据已被调整，请重新进入该页面编辑并提交数据");
+        }
+    #end
+    ${Name}Entity info = this.getInfo(mainUuid);
+    if (info == null) throw new RuntimeException(MsgCode.FA001.get());
+    #if(!$snowflake)
+        entity.set${peimaryKeyName}(info.get${peimaryKeyName}());
+    #end
+
+##子表数据新增修改
+#if(${childTableHandle.size()}>0)
+    #foreach($grid in ${childTableHandle})
+        #set($tableField = "${grid.tablefield.substring(0,1).toUpperCase()}${grid.tablefield.substring(1)}")
+        #set($relationField = "${grid.relationField.substring(0,1).toUpperCase()}${grid.relationField.substring(1)}")
+        #set($chidKeyName = "${grid.chidKeyName.substring(0,1).toUpperCase()}${grid.chidKeyName.substring(1)}")
+        #set($tableModel = "${grid.tableModel}")
+
+        //${grid.aliasUpName}子表数据新增修改
+
+        #if($logicalDelete)
+            UpdateWrapper<${grid.aliasUpName}Entity> ${grid.aliasLowName}UpdateWrapper = new UpdateWrapper<>();
+            ${grid.aliasLowName}UpdateWrapper.lambda().set(${grid.aliasUpName}Entity::getDeleteMark,1);
+            ${grid.aliasLowName}UpdateWrapper.lambda().set(${grid.aliasUpName}Entity::getDeleteUserId,UserProvider.getUser().getUserId());
+            ${grid.aliasLowName}UpdateWrapper.lambda().set(${grid.aliasUpName}Entity::getDeleteTime,new Date());
+            ${grid.aliasLowName}UpdateWrapper.lambda().eq(${grid.aliasUpName}Entity::get${tableField}, info.get${relationField}());
+        #else
+            QueryWrapper<${grid.aliasUpName}Entity> ${grid.aliasLowName}QueryWrapper = new QueryWrapper<>();
+            ${grid.aliasLowName}QueryWrapper.lambda().eq(${grid.aliasUpName}Entity::get${tableField}, info.get${relationField}());
+        #end
+        if(!isSave && !CollectionUtils.isNotEmpty(${name}Form.get${grid.aliasUpName}List())){
+        #if($logicalDelete)
+            ${grid.aliasLowName}Service.update(${grid.aliasLowName}UpdateWrapper);
+        #else
+            ${grid.aliasLowName}Service.remove(${grid.aliasLowName}QueryWrapper);
+        #end
+        }
+        if (CollectionUtils.isNotEmpty(${name}Form.get${grid.aliasUpName}List())){
+            List<${grid.aliasUpName}Entity> ${grid.tableModel} = JsonUtil.getJsonToList(${name}Form.get${grid.aliasUpName}List(),${grid.aliasUpName}Entity.class);
+            //移除的数据
+            List<Object> childIds = ${grid.tableModel}.stream().filter(t->t.get${chidKeyName}()!=null).map(${grid.aliasUpName}Entity::get${chidKeyName}).collect(Collectors.toList());
+            if(CollectionUtils.isNotEmpty(childIds)){
+            #if($logicalDelete)
+                ${grid.aliasLowName}UpdateWrapper.lambda().notIn(${grid.aliasUpName}Entity::get${chidKeyName},childIds);
+            #else
+                ${grid.aliasLowName}QueryWrapper.lambda().notIn(${grid.aliasUpName}Entity::get${chidKeyName},childIds);
+            #end
+            }
+        #if($logicalDelete)
+            ${grid.aliasLowName}Service.update(${grid.aliasLowName}UpdateWrapper);
+        #else
+            ${grid.aliasLowName}Service.remove(${grid.aliasLowName}QueryWrapper);
+        #end
+
+            for(${grid.aliasUpName}Entity entitys : ${grid.tableModel}){
+                entitys.set${tableField}(entity.get${relationField}());
+##子表保存修改判断是否有系统控件
+#set($childHasSysFields =false)
+#foreach($jnpfkey in ${grid.childList})
+    #if(${jnpfkey.fieLdsModel.vModel} != '')
+        #set($key = ${jnpfkey.fieLdsModel.config.jnpfKey})
+        #if(${systemJnpfKey.contains(${key})})
+            #set($childHasSysFields =true)
+        #end
+    #end
+#end
+#if($childHasSysFields)
+                if(isSave || entitys.get${chidKeyName}()==null){
+        #foreach($jnpfkey in ${grid.childList})
+            #if(${jnpfkey.fieLdsModel.vModel} != '')
+                #set($key = ${jnpfkey.fieLdsModel.config.jnpfKey})
+                #set($rule = ${jnpfkey.fieLdsModel.config.rule})
+                #set($showLevel ="${jnpfkey.fieLdsModel.showLevel}")
+                #set($model = "${jnpfkey.fieLdsModel.fieldAlias.substring(0,1).toUpperCase()}${jnpfkey.fieLdsModel.fieldAlias.substring(1)}")
+                #set($nameEntity = "entitys")
+                #set($realVmodel ="${tableModel}-${jnpfkey.fieLdsModel.vModel}")
+                #set($config =${jnpfkey.fieLdsModel.config})
+                #set($constantVmodel ="${grid.aliasLowName}_${jnpfkey.fieLdsModel.vModel}")
+                #GetSystemData(true)
+            #end
+        #end
+                }else{
+        #foreach($jnpfkey in ${grid.childList})
+            #if(${jnpfkey.fieLdsModel.vModel} != '')
+                #set($key = ${jnpfkey.fieLdsModel.config.jnpfKey})
+                #set($rule = ${jnpfkey.fieLdsModel.config.rule})
+                #set($showLevel ="${jnpfkey.fieLdsModel.showLevel}")
+                #set($model = "${jnpfkey.fieLdsModel.fieldAlias.substring(0,1).toUpperCase()}${jnpfkey.fieLdsModel.fieldAlias.substring(1)}")
+                #set($nameEntity = "entitys")
+                #set($realVmodel ="${tableModel}-${jnpfkey.fieLdsModel.vModel}")
+                #set($config =${jnpfkey.fieLdsModel.config})
+                #set($constantVmodel ="${grid.aliasLowName}_${jnpfkey.fieLdsModel.vModel}")
+                #GetSystemData(false,${chidKeyName})
+            #end
+        #end
+                }
+#end
+            #if($snowflake)
+                if(entitys.get${chidKeyName}()==null){
+                    entitys.set${chidKeyName}(RandomUtil.uuId());
+                }
+            #end
+                ${grid.aliasLowName}Service.saveOrUpdate(entitys);
+            }
+        }
+    #end
+#end
+##副表数据新增修改
+#if(${columnTableHandle.size()}>0)
+    #foreach($cl in  ${columnTableHandle})
+##副表保存修改判断是否有系统控件
+#set($mastHasSysFields =false)
+#foreach($clModel in ${cl.fieLdsModelList})
+    #set($key =  ${clModel.mastTable.fieLdsModel.config.jnpfKey})
+    #if($key!='' && ${systemJnpfKey.contains(${key})})
+        #set($mastHasSysFields =true)
+    #end
+#end
+        //${cl.tableName}副表数据新增修改
+        #set($mainField = $cl.mainField)
+        #set($mainUpId = "${mainField.substring(0,1).toUpperCase()}${mainField.substring(1)}")
+        $mapObject ${cl.modelName}Map = generaterSwapUtil.getMastTabelData(${name}Form,"${cl.tableName}");
+        ${cl.modelName}Entity  ${cl.modelLowName}entity = JsonUtil.getJsonToBean(${cl.modelName}Map,${cl.modelName}Entity.class);
+        //自动生成的字段
+        if(isSave){
+        #if($mastHasSysFields)
+        #foreach($clModel in ${cl.fieLdsModelList})
+            #set($model = "${clModel.mastTable.fieLdsModel.fieldAlias.substring(0,1).toUpperCase()}${clModel.mastTable.fieLdsModel.fieldAlias.substring(1)}")
+            #set($key =  ${clModel.mastTable.fieLdsModel.config.jnpfKey})
+            #set($nameEntity = "${cl.modelLowName}entity")
+            #set($rule ="${clModel.mastTable.fieLdsModel.config.rule}")
+            #set($showLevel ="${clModel.mastTable.fieLdsModel.showLevel}")
+            #set($realVmodel ="${clModel.vModel}")
+            #set($config =${clModel.mastTable.fieLdsModel.config})
+            #set($constantVmodel ="${clModel.vModel}")
+            #GetSystemData(true)
+        #end
+        #end
+        #if($snowflake)
+            ${cl.modelLowName}entity.set${mainUpId}(RandomUtil.uuId());
+        #end
+            ${cl.modelLowName}entity.set${cl.relationUpField}(entity.get${cl.mainUpKey}());
+        }else{
+            QueryWrapper<${cl.modelUpName}Entity> queryWrapper${cl.modelUpName} =new QueryWrapper<>();
+            queryWrapper${cl.modelUpName}.lambda().eq(${cl.modelUpName}Entity::get${cl.relationUpField},info.get${cl.mainUpKey}());
+            ${cl.modelUpName}Entity ${cl.modelLowName}OneEntity= ${cl.modelLowName}Service.getOne(queryWrapper${cl.modelUpName});
+        #if($mastHasSysFields)
+        #foreach($clModel in ${cl.fieLdsModelList})
+            #set($model = "${clModel.mastTable.fieLdsModel.fieldAlias.substring(0,1).toUpperCase()}${clModel.mastTable.fieLdsModel.fieldAlias.substring(1)}")
+            #set($key =  ${clModel.mastTable.fieLdsModel.config.jnpfKey})
+            #set($nameEntity = "${cl.modelLowName}entity")
+            #set($rule ="${clModel.mastTable.fieLdsModel.config.rule}")
+            #set($showLevel ="${clModel.mastTable.fieLdsModel.showLevel}")
+            #set($realVmodel ="${clModel.vModel}")
+            #set($config =${clModel.mastTable.fieLdsModel.config})
+            #set($constantVmodel ="${clModel.vModel}")
+            #GetSystemData(false)
+        #end
+        #end
+            ${cl.modelLowName}entity.set${cl.mainField}(${cl.modelLowName}OneEntity.get${cl.mainField}());
+            ${cl.modelLowName}entity.set${cl.relationUpField}(entity.get${cl.mainUpKey}());
+        }
+
+        ${cl.modelLowName}Service.saveOrUpdate(${cl.modelLowName}entity);
+    #end
+#end
+    }
+
+    #if($isFlow)
+    @Override
+    public void saveState(String flowTaskId, Integer flowState){
+        ${Name}Entity info = this.getInfo(flowTaskId);
+        info.setFlowState(flowState);
+        this.updateById(info);
+    }
+    #end
+#end

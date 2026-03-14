@@ -1,0 +1,56 @@
+#set($name = "${context.className.substring(0,1).toUpperCase()}${context.className.substring(1)}")
+package ${context.package}.model.$!{name.toLowerCase()};
+
+import jnpf.constant.GlobalConst;
+#if($context.webType != 4)
+import jnpf.model.generater.GenerParamConst;
+#else
+import jnpf.model.generater.GenerViewConst;
+#end
+import jnpf.util.JsonUtil;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StreamUtils;
+
+import java.io.InputStream;
+
+/**
+ * ${context.genInfo.description}配置json
+ *
+ * @版本： ${context.genInfo.version}
+ * @版权： ${context.genInfo.copyright}
+ * @作者： ${context.genInfo.createUser}
+ * @日期： ${context.genInfo.createDate}
+ */
+@Data
+@Slf4j
+public class $!{name}Constant extends  #if($context.webType != 4) GenerParamConst#else GenerViewConst#end {
+
+    private static String contStr = null;
+
+    private static $!{name}Constant contEnt;
+
+    static {
+        if (contStr == null) {
+            try (InputStream is = $!{name}Constant.class.getResourceAsStream("$!{name}Json.json")) {
+                contStr = StreamUtils.copyToString(is, GlobalConst.DEFAULT_CHARSET);
+            } catch (Exception e) {
+                log.error("加载配置文件失败: " + e.getMessage());
+            }
+        }
+    }
+
+    public static $!{name}Constant get() {
+        if (contEnt == null) {
+            contEnt = JsonUtil.getJsonToBean(contStr, $!{name}Constant.class);
+        }
+        return contEnt;
+    }
+
+    #if($context.billRule)
+    /** 单据规则 */
+    #foreach($key in ${context.billRule.keySet()})
+    public String $key = "";
+    #end
+    #end
+}

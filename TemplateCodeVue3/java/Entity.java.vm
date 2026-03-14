@@ -1,0 +1,94 @@
+package ${package.Entity};
+
+import com.baomidou.mybatisplus.annotation.*;
+import lombok.Data;
+import java.util.Date;
+import java.util.List;
+import com.alibaba.fastjson.annotation.JSONField;
+#foreach($field in ${table.fields})
+#if(${field.propertyType} =='BigDecimal')
+import java.math.BigDecimal;
+#elseif(${field.propertyType} == 'BigInteger')
+import java.math.BigInteger;
+#elseif(${field.propertyType} == 'LocalTime')
+import java.sql.Time;
+#end
+#end
+/**
+ * ${table.comment}
+ *
+ * @版本： ${genInfo.version}
+ * @版权： ${genInfo.copyright}
+ * @作者： ${genInfo.createUser}
+ * @日期： ${genInfo.createDate}
+ */
+@Data
+#if(${table.convert})
+@TableName("${table.name}")
+#end
+#if(${activeRecord})
+public class ${table.entity} extends Model<${table.entity}> {
+#else
+public class ${table.entityName}  {
+#end
+#foreach($field in ${table.fields})
+#set($tableField = "${field.name}")
+#set($Property = "${field.propertyName}")
+#if('f_tenant_id'==${tableField} || 'F_TENANT_ID'==${tableField})
+    @TableField(value = "${tableField}",fill = FieldFill.INSERT_UPDATE)
+#elseif('f_delete_time' == ${tableField.toLowerCase()} || 'f_delete_user_id' == ${tableField.toLowerCase()})
+    @TableField(value = "${tableField}",fill = FieldFill.UPDATE)
+#elseif(${field.keyFlag}=='true')
+    @TableId(value ="${tableField}"  #if(${field.keyIdentityFlag}),type = IdType.AUTO #end)
+#else
+    #if(${tableNotSystemField.contains(${Property.toUpperCase()})})
+    @TableField(value = "${tableField}" , updateStrategy = FieldStrategy.ALWAYS)
+    #else
+    @TableField("${tableField}")
+    #end
+#end
+#if('f_version'==${tableField.toLowerCase()})
+    @Version
+    @JSONField(name = "f_version")
+#else
+    @JSONField(name = "${tableField}")
+#end
+#if(${field.propertyType} =='LocalDateTime' || ${field.propertyType} =='datePicker' || ${field.propertyType} =='LocalDate')
+    private Date ${Property};
+#elseif(${field.propertyType} =='Clob')
+    private String ${Property};
+#elseif(${field.propertyType} == 'LocalTime')
+    private Time ${Property};
+#elseif(${field.type} =='datetime')
+    private Date ${Property};
+#elseif(${field.type} =='datetime')
+    private Date ${Property};
+#else
+##    删除标记和版本字段强制int
+    #if(${tableField.toLowerCase()} =='f_version' || ${tableField.toLowerCase()} =='f_delete_mark')
+    private Integer ${Property};
+    #else
+    private ${field.propertyType} ${Property};
+    #end
+#end
+#end
+
+#if(${main})
+#foreach($item in $allTableNameList)
+    #set($TableEntity = "${item.table.substring(0,1).toUpperCase()}${item.table.substring(1)}")
+    #set($tableEntity = "${item.table.substring(0,1).toLowerCase()}${item.table.substring(1)}")
+##  副表一对一
+    #if(${item.tableTag} =='sub-jnpf')
+    @JSONField(name = "${tableEntity}")
+    @TableField(exist = false)
+    private ${TableEntity}Entity $tableEntity;
+    #end
+##  子表一对多
+    #if(${item.tableTag} =='sub')
+    @JSONField(name = "${tableEntity}")
+    @TableField(exist = false)
+    private List<${TableEntity}Entity> $tableEntity;
+    #end
+#end
+#end
+}

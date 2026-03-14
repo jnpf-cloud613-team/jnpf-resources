@@ -1,0 +1,1554 @@
+#set($pKeyName = "${context.pKeyName}")
+#set($mastTableList = $context.mastTable)
+#set($setPermission = '$'+"permission")
+#set($toast='this.$u.toast(res.msg)')
+#set($menuId = "menuId")
+#set($useBtnPermission=${context.useBtnPermission})
+#set($useFormPermission=${context.useFormPermission})
+#set($isFlow=${context.isFlow})
+#set($isTab=${context.isTab})
+#set($filterableModel=['select','cascader','treeSelect'])
+#set($noVmodel=['groupTitle','divider','text','button',"link","alert","barcode","qrcode"])
+#set($showModelDisabledList=['rate','slider',"colorPicker"])
+##系统控件jnpfkey
+#set($systemJnpfKey=['createUser','createTime','modifyUser','modifyTime','currOrganize','currPosition','billRule'])
+## 布局控件
+#set($layoutList=['tab','collapse','steps'])
+#set($showModelList=['rate','slider','uploadFile','inputNumber',"uploadImg","editor","colorPicker","sign","input","location","signature"])
+#set($extraList=['relationForm','popupSelect'])
+## 搜索设置动态值（系统变量）
+#set($searchSystemParam =['datePicker', 'organizeSelect', 'posSelect', 'userSelect'])
+#set($NoGenerate= ['calculate','dateCalculate','relationQuery',
+    'textOcr','bankCardOcr','idCardFrontOcr','idCardBackOcr','businessLicenseOcr','invoiceOcr','drivingLicenseOcr','vehicleLicenseOcr','trainTicketOcr'])
+##  获取表单信息
+#macro(AppFormRendering)
+    #foreach($fieLdsModel in ${context.form})
+        #set($jnpfkey = "${fieLdsModel.jnpfKey}")
+        #set($isEnd = "${fieLdsModel.isEnd}")
+        #set($formModel = ${fieLdsModel.formModel})
+        #set($config=$formModel.config)
+        #set($span=$config.span)
+        #set($outermost = ${formModel.outermost})
+        #set($header = ${formModel.header})
+        #if($jnpfkey=='card' || $jnpfkey=='row')
+            #if(${config.app}==true)
+                #if(${isEnd}=='0')
+                <view class="jnpf-card">
+                    #if($header)
+                        <view class="jnpf-card-cap u-line-1">#if(${formModel.headerI18nCode}){{$t('${formModel.headerI18nCode}')}}#else ${header} #end
+                            #if(${config.tipLabel})<u-icon name="question-circle-fill" class="u-m-l-10" color="#a0acb7"
+                                                    @click="clickIcon(#if(${formModel.headerI18nCode}) $t('${formModel.headerI18nCode}') #else '${header}'#end,#if(${config.tipLabelI18nCode})$t('${config.tipLabelI18nCode}') #else '${config.tipLabel}' #end)"/>#end</view>
+                    #end
+                #else
+                </view>
+                #end
+            #end
+##        步骤条表单
+        #elseif($jnpfkey=='steps')
+            #set($stepsModel = ${formModel.model})
+            #set($stepNum = ${formModel.childNum})
+            #if(${config.app}==true)
+                #if(${isEnd}=='0')
+                    #if(${outermost}=='0')
+                    <view prop="${formModel.model}">
+                        <u-steps class="step-container" :list="${stepsModel}Data" name="title" :current="${stepsModel}Current"
+                                #if(${formModel.simple}==true)mode="dot" #else mode="number"#end @change="${stepsModel}"/>
+                    <view>
+                    #else
+                    <view v-show="${stepNum} == ${stepsModel}Current">
+                    #end
+                #else
+                    #if(${outermost}=='0')
+                    </view>
+                    </view>
+                    #else
+                    </view>
+                    #end
+                #end
+            #end
+        #elseif($jnpfkey=='collapse')
+            #set($collapse = "u-collapse")
+            #set($tabNum = ${formModel.childNum})
+            #if(${outermost}=='1')
+                #set($collapse = "u-collapse-item")
+            #end
+            #if(${config.app}==true)
+                #if(${isEnd}=='0')
+                    #if(${outermost}=='0')
+                    <${collapse} ref="${formModel.model}Current" :accordion="${formModel.accordion}" v-model="${formModel.model}Current">
+                    #else
+                    <${collapse} #if($formModel.titleI18nCode) :title="$t('${formModel.titleI18nCode}')" #else title="${formModel.title}"#end
+                     @change="onCollapseChange" :open="${formModel.model}active.indexOf('${formModel.name}')>-1" name="${formModel.name}" class="collapse-item">
+                    #end
+                #else
+                </${collapse}>
+                #end
+            #end
+        #elseif(${noVmodel.contains($jnpfkey)})
+            #set($defaultName="")
+            #set($tag=${config.tag})
+            #set($divider ="")
+            #set($itemBox = "form-item-box")
+            #set($itemLabel = "")
+            #if($jnpfkey=="groupTitle")
+                #set($itemBox="")
+            #elseif($jnpfkey=="divider")
+                #set($divider ="half-width=""200"" height=""80""")
+                #set($defaultName="$formModel.content")
+            #elseif($jnpfkey=="qrcode")
+                #set($itemLabel = "${config.label}")
+            #elseif($jnpfkey=="barcode")
+                #set($itemLabel = "${config.label}")
+            #end
+            #if(${config.app}==true)
+			    #if(${itemBox})
+            <view class="u-p-l-20 u-p-r-20 ${itemBox}">
+                <u-form-item #if($itemLabel) #if(${config.labelI18nCode}) :label="$t('${config.labelI18nCode}')+'${context.labelSuffix}'" #else label="${itemLabel}${context.labelSuffix}" #end
+                    #if($config.labelWidth) label-width="${config.labelWidth}"#end
+                    #if(${config.tipLabel}) left-icon="question-circle-fill" @clickIcon="clickIcon(#if(${config.labelI18nCode}) $t('${config.labelI18nCode}') #else '${itemLabel}' #end,#if(${config.tipLabelI18nCode}) $t('${config.tipLabelI18nCode}')#else '${config.tipLabel}') #end" :left-icon-style="{'color':'#a0acb7'}"#end#end>
+                #end
+                    <${tag}
+                    #if($formModel.dataType) dataType='${formModel.dataType}' :formData="${context.formModel}" :key="timeKey" #end
+                    #if($formModel.height) :height='${formModel.height}'#end
+                    #if($formModel.width) :width='${formModel.width}'#end
+                    #if($formModel.format) format='${formModel.format}'#end
+                    #if($formModel.staticText) staticText='${formModel.staticText}'#end
+                    #if($formModel.lineColor) lineColor='${formModel.lineColor}'#end
+                    #if($formModel.background) background='${formModel.background}'#end
+                    #if($formModel.relationField) relationField='${formModel.relationField}'#end
+                    #if($formModel.colorDark) colorDark='${formModel.colorDark}'#end
+                    #if($formModel.colorLight) colorLight='${formModel.colorLight}'#end
+                    #if($formModel.title || $formModel.titleI18nCode) #if(${formModel.titleI18nCode}) :title="$t('${formModel.titleI18nCode}', '${formModel.title}')"
+                    #else title="${formModel.title}" #end#end
+                    #if($formModel.description || $formModel.descriptionI18nCode) #if(${formModel.descriptionI18nCode}) :description="$t('${formModel.descriptionI18nCode}', '${formModel.description}')"
+                    #else description="${formModel.description}" #end#end
+                    #if($formModel.closeText || $formModel.closeTextI18nCode) #if(${formModel.closeTextI18nCode}) :closeText="$t('${formModel.closeTextI18nCode}', '${formModel.closeText}')"
+                    #else closeText="${formModel.closeText}" #end#end
+                    #if($formModel.tagIcon) tagIcon='${formModel.tagIcon}'#end
+                    #if($formModel.showIcon) showIcon #end
+                    #if($formModel.closable) closable #end
+                    #if($formModel.target) target='${formModel.target}'#end
+                    #if($formModel.href) href='${formModel.href}'#end
+                    #if($formModel.buttonText || $formModel.buttonTextI18nCode) #if(${formModel.buttonTextI18nCode}) :buttonText="$t('${formModel.buttonTextI18nCode}', '${formModel.buttonText}')"
+                    #else buttonText="${formModel.buttonText}" #end#end
+                    #if($formModel.align) align='${formModel.align}'#end
+                    #if($formModel.type) type='${formModel.type}'#end
+                    #if($formModel.textStyle) :textStyle='${formModel.textStyle}'#end
+                    #if($config.defaultValue) value="${config.defaultValue}"#end
+                    #if($formModel.helpMessage && ${formModel.content}) helpMessage ="${formModel.helpMessage}" #if(${formModel.helpMessageI18nCode}) :tipLabel="$t('${formModel.helpMessageI18nCode}')"
+                    #else  tipLabel="${formModel.helpMessage}"#end @groupIcon="clickIcon(#if(${formModel.contentI18nCode}) $t('${formModel.contentI18nCode}') #else `${formModel.content}` #end,#if(${formModel.helpMessageI18nCode}) $t('${formModel.helpMessageI18nCode}')#else `${formModel.helpMessage}` #end)" #end
+                    #if($divider) ${divider}#end
+                    #if($formModel.content) #if(${formModel.contentI18nCode}) :value="$t('${formModel.contentI18nCode}')"#else value="${formModel.content}" #end #if(${formModel.contentI18nCode}) :content="$t('${formModel.contentI18nCode}')"#else content="${formModel.content}" #end#end
+                    #if($formModel.contentPosition) contentPosition="${formModel.contentPosition}" #end>
+                    #if(${defaultName})
+                        $!{defaultName}
+                    #end
+                </${tag}>
+				#if(${itemBox})
+                </u-form-item>
+            </view>
+				#end
+            #end
+        #elseif($jnpfkey=='tab')
+            #set($tabModel = ${formModel.model})
+            #set($tabNum = ${formModel.childNum})
+            #if(${config.app}==true)
+                #if(${isEnd}=='0')
+                    #if(${outermost}=='0')
+                    <view prop="${formModel.model}">
+                        <u-tabs ref="${formModel.model}Current"  :is-scroll="false" :list="${tabModel}Data" name="title" v-model="${tabModel}Current" @change="${tabModel}"/>
+                    <view>
+                    #else
+                    <view v-show="${tabNum} == ${tabModel}Current">
+                    #end
+                #else
+                    #if(${outermost}=='0')
+                    </view>
+                    </view>
+                    #else
+                    </view>
+                    #end
+                #end
+            #end
+        #elseif($jnpfkey=='mastTable')
+            #set($mastTableModel = $fieLdsModel.formMastTableModel)
+            #set($html = $mastTableModel.mastTable.fieLdsModel)
+            #set($formModel="${context.formModel}")
+            #set($showModel="")
+            #set($tableModel = "")
+            #appForm('mastTable' $html $formModel $showModel $tableModel)
+        #elseif($jnpfkey=='mast')
+            #set($html = $fieLdsModel.formColumnModel.fieLdsModel)
+            #set($formModel = "${context.formModel}")
+            #set($showModel="")
+            #set($tableModel = "")
+            #appForm('mast' $html $formModel $showModel $tableModel)
+        #elseif($jnpfkey=='table')
+            #set($child = $fieLdsModel.childList)
+            #set($childApp=$child.app)
+            #set($tableModel = ${child.tableModel})
+            #set($columnBtnsList = ${child.columnBtnsList})
+            #set($footerBtnsList = ${child.footerBtnsList})
+            #set($className = "")
+            #foreach($children in ${context.children})
+                #if(${children.tableModel}==${child.tableModel})
+                    #set($className = "${children.className}")
+                #end
+            #end
+            #set($showJudge= "")
+            #set($showTableWrite="")
+            #if(${isFlow}==false && ${useFormPermission})
+                #set($showJudge= "v-if="""+"${setPermission}.hasFormP('"+${tableModel}+"',menuId)"+"""")
+            #elseif(${isFlow})
+                #set($showJudge= "v-if="""+"judgeShow('"+${tableModel}+"')"+"""")
+                #set($showTableWrite="!judgeWrite('"+${tableModel}+"')")
+            #end
+            #if($childApp == true)
+            <view class="jnpf-table"#if(${showJudge}) $showJudge#end>
+                <view class="jnpf-table-title u-line-1">
+                    #if(${child.labelI18nCode}) {{$t('${child.labelI18nCode}')}} #else ${child.label} #end
+                    #if(${child.tipLabel})
+                    <u-icon name="question-circle-fill" class="u-m-l-10" color="#a0acb7" @click="clickIcon(#if(${child.labelI18nCode}) $t('${child.labelI18nCode}') #else '${child.label}'#end,#if(${child.tipLabelI18nCode}) $t('${child.tipLabelI18nCode}') #else '${child.tipLabel}'#end)"/>
+                    #end
+                </view>
+                <view class="jnpf-table-item" v-for="(item,i) in ${context.formModel}.${className}List" :key="i">
+                    <view class="jnpf-table-item-title">
+                        <view class="jnpf-table-item-title-num">({{i+1}})</view>
+                        <template v-if="true">
+                            #foreach($columnList in ${child.columnBtnsList})
+                                #set($btnvalue = "$columnList.value")
+                                #set($btnlabel = "$columnList.label")
+                                #set($btnshow = $columnList.show)
+                                #set($btnType = "$columnList.btnType")
+                                #set($btnIcon = "$columnList.btnIcon")
+                                #set($btnConfirm = $columnList.showConfirm)
+                                #if($btnshow)
+                                    #if($btnvalue=='copy')
+                            <view class="jnpf-table-copy-btn" v-if="#if($showTableWrite) ${showTableWrite} && #end true" @click="copy${className}List(i)">#if(${columnList.labelI18nCode}) {{$t('${columnList.labelI18nCode}')}} #else ${btnlabel} #end</view>
+                                    #elseif($btnvalue=='remove')
+                            <view class="jnpf-table-delete-btn" v-if="#if($showTableWrite) ${showTableWrite} && #end true" @click="del${className}List(i,${btnConfirm})">#if(${columnList.labelI18nCode}) {{$t('${columnList.labelI18nCode}')}} #else ${btnlabel} #end</view>
+                                    #end
+                            #end
+                        #end
+                        </template>
+                    </view>
+                    #foreach($childListAll in ${child.childList})
+                        #set($html = $childListAll.fieLdsModel)
+                        #set($formModel="${context.formModel}.${className}List[i]")
+                        #set($showModel="${className}")
+                        #appForm('table' $html $formModel $showModel $tableModel)
+                    #end
+                </view>
+                <view class="jnpf-table-footer-btn" #if(${showTableWrite}) v-if="$showTableWrite"#end>
+                    #foreach($footerList in ${child.footerBtnsList})
+                        #set($btnvalue = "$footerList.value")
+                        #set($btnlabel = "$footerList.label")
+                        #set($btnshow = $footerList.show)
+                        #set($btnType = "$footerList.btnType")
+                        #set($btnIcon = "$footerList.btnIcon")
+                        #if($btnshow && $btnvalue!='batchRemove' && $footerList.actionType!=2)
+                    <view class="jnpf-table-btn jnpf-table-${btnType}-btn" @click="add${className}List('${btnvalue}')" >
+                        <text class="jnpf-table-btn-icon ${btnIcon}"/>
+                        <text class="jnpf-table-btn-text">#if(${footerList.labelI18nCode}) {{$t('${footerList.labelI18nCode}')}} #else ${btnlabel} #end</text>
+                    </view>
+                            #end
+                        #end
+                </view>
+                #set($showSummary = $child.showSummary)
+                #if($showSummary)
+                    <view class="jnpf-table-item" v-if="Object.keys(${className}()).length">
+                        <view class="jnpf-table-item-title u-flex u-row-between">
+                            <text class="jnpf-table-item-title-num">#if(${child.labelI18nCode}){{$t('${child.labelI18nCode}')}}#else${child.label}#end{{$t('component.table.summary','合计')}}</text>
+                        </view>
+                        <view class="u-p-l-20 u-p-r-20 form-item-box">
+                            <u-form-item v-for="(item,i) in ${className}()" :key="i" :label="item.name">
+                                <JnpfInput v-model="item.val" disabled placeholder="" />
+                            </u-form-item>
+                        </view>
+                    </view>
+                #end
+            </view>
+            #end
+        #end
+    #end
+#end
+#macro(appForm $key $html $formModel $showModel $tableModel)
+    #set($model = "${html.vModel}")
+    #set($slot = ${html.slot})
+    #set($prop="${html.vModel}")
+    #set($config = $html.config)
+    #set($show = ${config.noShow})
+    #if(${isFlow})
+        #set($show = false)
+    #end
+    #set($vmodel="${formModel}.${model}")
+    #set($modelProps="")
+    #set($modelOptions="")
+    #set($modelUpload="")
+    #set($modelColumnOptions="")
+    #set($modelExtraOptions="")
+    #set($jnpfkey="${config.jnpfKey}")
+    #set($tag="")
+    #set($labelSuffix="${context.labelSuffix}")
+    #set($list="${model}")
+    #set($type=${html.type})
+    #set($showList = ${model})
+    #set($isStorage="${html.isStorage}")
+    #set($showJudge="")
+    #if(${isFlow}==false && ${useFormPermission})
+        #set($showJudge= "v-if="""+"${setPermission}.hasFormP('"+${showList}+"',menuId)"+"""")
+    #elseif(${isFlow})
+        #set($showJudge= "v-if="""+"judgeShow('"+${showList}+"')"+"""")
+    #end
+    #set($relationField="")
+    #set($relationModel = "")
+    #set($roleOrgroup = "")
+    #set($showWrite = "")
+    #set($required = ".${prop}")
+    #set($childoptions="")
+    #set($inputalign="")
+    #set($ableRelationIds="")
+    #set($rowIndex="")
+    #set($formData="")
+    #set($templateJson="")
+    #set($maskConfig="")
+    #set($locationScope="")
+    #set($startTime="")
+    #set($endTime="")
+    #set($dataType="${config.dataType}")
+    #if($jnpfkey=='input')
+        #set($maskConfig="maskConfig.${model}")
+    #end
+    #if($jnpfkey=='location')
+        #set($locationScope="locationScope.${model}")
+    #end
+    #if($jnpfkey=='userSelect' && ${html.relationField})
+        #set($ableRelationIds="${context.formModel}.${html.relationField}")
+        #if($html.relationChild)
+            #set($ableRelationIds="${context.formModel}.${showModel}List[i].${html.relationField}")
+        #end
+    #end
+    #if($jnpfkey=='datePicker' || $jnpfkey=='timePicker')
+        #set($startRelationField="''")
+        #if($config.startRelationField)
+            #set($startRelationField="${context.formModel}.${config.startRelationField}")
+            #if($config.startChild)
+                #set($startRelationField="${context.formModel}.${showModel}List[i].${config.startRelationField}")
+            #end
+        #end
+        #set($startTimeValue="#if(${config.startTimeValue})'${config.startTimeValue}'#else''#end")
+        #set($startTimeType="#if(${config.startTimeType})${config.startTimeType}#else''#end")
+        #set($startTimeTarget="#if(${config.startTimeTarget})${config.startTimeTarget}#else''#end")
+        #set($endRelationField="''")
+        #if($config.endRelationField)
+            #set($endRelationField="${context.formModel}.${config.endRelationField}")
+            #if($config.endChild)
+                #set($endRelationField="${context.formModel}.${showModel}List[i].${config.endRelationField}")
+            #end
+        #end
+        #set($endTimeValue="#if(${config.endTimeValue})'${config.endTimeValue}'#else''#end")
+        #set($endTimeType="#if(${config.endTimeType})${config.endTimeType}#else''#end")
+        #set($endTimeTarget="#if(${config.endTimeTarget})${config.endTimeTarget}#else''#end")
+
+        #set($startTime="dateTime(${config.startTimeRule},${startTimeType},${startTimeTarget},${startTimeValue},${startRelationField})")
+        #set($endTime="dateTime(${config.endTimeRule},${endTimeType},${endTimeTarget},${endTimeValue},${endRelationField})")
+        #if($jnpfkey=='timePicker')
+            #set($startTime="time(${config.startTimeRule},${startTimeType},${startTimeTarget},${startTimeValue},'${html.format}',${startRelationField})")
+            #set($endTime="time(${config.endTimeRule},${endTimeType},${endTimeTarget},${endTimeValue},'${html.format}',${endRelationField})")
+        #end
+    #end
+    #set($configLabel="${config.label}")
+    #if($jnpfkey=='roleSelect' || $jnpfkey=='groupSelect')
+        #set($roleOrgroup = "vModel='"+${prop}+"'")
+    #end
+    #if($jnpfkey=='relationForm' || $jnpfkey=='popupSelect'|| $jnpfkey=='popupTableSelect'|| $jnpfkey=='autoComplete')
+        #set($relationField = "relationField='"+${html.relationField}+"'")
+        #set($relationModel = "vModel='"+${prop}+"'")
+        #set($rowIndex="null")
+        #set($formData="${context.formModel}")
+        #set($templateJson="interfaceRes.${model}")
+    #end
+    #if($jnpfkey=='popupAttr' || $jnpfkey=='relationFormAttr')
+        #set($relationField = "relationField='"+${html.relationField}+"'")
+        #if($isStorage=='0')
+            #if(${isFlow}==false && ${useFormPermission})
+                #set($showJudge= "v-if="""+"${setPermission}.hasFormP('"+${html.relationField}+"',menuId)"+"""")
+            #elseif(${isFlow})
+                #set($showJudge = "v-if="""+"judgeShow('"+${html.relationField}+"')"+"""")
+            #end
+        #end
+        #set($showList = "")
+    #end
+    #if($key=='table')
+        #set($showList="")
+        #set($labelSuffix="")
+        #set($prop="")
+        #set($required = "")
+        #if(${isFlow}==false)
+            #if(${html.disabled})
+                #set($showWrite="disabled")
+            #end
+            #if(${useFormPermission})
+                #set($showJudge= "v-if="""+"${setPermission}.hasFormP('"+${tableModel}+"-"+${model}+"',menuId)"+"""")
+            #end
+        #elseif(${isFlow})
+            #set($required = "['${showModel}List-${model}']")
+            #set($showJudge= "v-if="""+"judgeShow('"+${tableModel}+"-"+${model}+"')"+"""")
+            #set($showWrite=":disabled=""judgeWrite('"+${tableModel}+"')||judgeWrite('"+${tableModel}+"-"+${model}+"')""")
+        #end
+        #set($childoptions="${showModel}")
+        #if($jnpfkey=='input')
+            #set($maskConfig="maskConfig.${showModel}${model}")
+        #end
+        #if($jnpfkey=='location')
+            #set($locationScope="locationScope.${showModel}${model}")
+        #end
+        #if($jnpfkey=='relationForm' || $jnpfkey=='popupSelect'|| $jnpfkey=='popupTableSelect'|| $jnpfkey=='autoComplete')
+            #set($relationModel = ":vModel=""'"+${model}+"'+i""")
+            #set($rowIndex="i")
+            #set($formData="${context.formModel}")
+            #set($templateJson="interfaceRes.${showModel}${model}")
+        #end
+        #if($jnpfkey=='popupAttr' || $jnpfkey=='relationFormAttr')
+            #set($relationField = ":relationField=""'"+${html.relationField}+"'+i""")
+            #if($isStorage=='0')
+                #if(${isFlow}==false && ${useFormPermission})
+                    #set($showJudge= "v-if="""+"${setPermission}.hasFormP('"+${tableModel}+"-"+${html.relationField}+"',menuId)"+"""")
+                #elseif(${isFlow})
+                    #set($showJudge= "v-if="""+"judgeShow('"+${tableModel}+"-"+${html.relationField}+"')"+"""")
+                #end
+            #end
+            #set($showWrite="")
+        #end
+    #end
+    #if(${showList})
+        #set($showWrite="")
+        #if(${isFlow}==false && ${html.disabled})
+            #set($showWrite="disabled")
+        #elseif(${isFlow})
+            #set($showWrite=":disabled=""judgeWrite('"+${showList}+"')""")
+        #end
+    #end
+    #if($jnpfkey=='createUser' || $jnpfkey=='createTime' || $jnpfkey=='modifyUser' || $jnpfkey=='modifyTime' || $jnpfkey=='currOrganize' || $jnpfkey=='currDept' || $jnpfkey=='currPosition' || $jnpfkey=='billRule')
+##        #set($placeholder = "系统自动生成")
+        #set($html.placeholderI18nCode = "component.jnpf.common.autoGenerate")
+        #set($showWrite="disabled")
+    #end
+    #if($jnpfkey=='input' || $jnpfkey=='textarea' || $jnpfkey=='modifyUser' || $jnpfkey=='modifyTime' || $jnpfkey=='billRule')
+        #if($jnpfkey=='textarea')
+            #set($type = "textarea")
+        #end
+        #set($inputalign="right")
+    #elseif($jnpfkey=='editor')
+        #set($configLabel="")
+    #elseif($jnpfkey=='uploadImg')
+        #set($modelUpload="${vmodel}")
+    #elseif($jnpfkey=='popupSelect')
+        #set($type = "popup")
+    #elseif($jnpfkey=='relationForm')
+        #set($type = "relation")
+    #elseif($jnpfkey=='datePicker' || $jnpfkey=='timePicker')
+        #set($type = "date")
+        #if($jnpfkey=='timePicker')
+            #set($type = "time")
+        #end
+    #elseif($jnpfkey=='organizeSelect' || $jnpfkey=='depSelect' || $jnpfkey=='posSelect' )
+        #if($jnpfkey=='organizeSelect')
+            #set($type = "organize")
+        #elseif($jnpfkey=='depSelect')
+            #set($type = "department")
+        #elseif($jnpfkey=='posSelect')
+            #set($type = "position")
+        #end
+    #elseif($jnpfkey=='popupAttr')
+        #set($type = "popupAttr")
+    #elseif($jnpfkey=='relationFormAttr')
+        #set($type = "relationFormAttr")
+    #end
+    #if($jnpfkey=='checkbox' || $jnpfkey=='select' || $jnpfkey=='cascader'|| $jnpfkey=='radio' || $jnpfkey=='treeSelect')
+        #set($modelProps="${childoptions}${list}Props")
+        #set($modelOptions="${childoptions}${list}Options")
+        #if(${childoptions} && ${dataType}=='dynamic')
+            #set($modelOptions="${context.formModel}.${childoptions}List[i].${list}Options")
+        #end
+    #end
+    #if($jnpfkey=='relationForm' || $jnpfkey=='popupSelect'|| $jnpfkey=='popupTableSelect')
+        #set($modelColumnOptions="${childoptions}${list}ColumnOptions")
+        #if($key!='table')
+        #set($modelExtraOptions="${childoptions}${list}ExtraOptions")
+        #end
+    #end
+    #set($tag=${config.tag})
+    #if($jnpfkey=='popupTableSelect')
+        #set($tag='JnpfPopupSelect')
+    #end
+    #if($NoGenerate.contains($jnpfkey))
+        #set($tag="")
+    #end
+    #set($end ="/"+ ${tag})
+    #if($show == false && ${config.app}==true)
+        #if($tag)
+        <view class="u-p-l-20 u-p-r-20 form-item-box">
+            <u-form-item #if($showJudge) ${showJudge} #end
+                #if($model) #if($isFlow):required="requiredList${required}" #else #if($config.required==true) required #end #end #end
+                #if($config.showLabel && $config.showLabel == true)
+                #if($configLabel) #if(${config.labelI18nCode}) :label="$t('${config.labelI18nCode}')+'${labelSuffix}'"#else label="${configLabel}${labelSuffix}" #end#end
+                #if((${config.labelI18nCode} || $config.tipLabel) && $jnpfkey!='editor' && $configLabel) left-icon="question-circle-fill" @clickIcon="clickIcon(#if(${config.labelI18nCode}) $t('${config.labelI18nCode}')#else'${configLabel}' #end,#if(${config.tipLabelI18nCode}) $t('${config.tipLabelI18nCode}') #else '${config.tipLabel}'#end)" :left-icon-style="{'color':'#a0acb7'}" #end
+                #if($key!='table')
+                    #if($config.labelWidth) label-width="${config.labelWidth}"#end
+                #end
+                #end
+                #if($prop) prop="${prop}" #end
+                #if($jnpfkey=='relationForm' || $jnpfkey=='popupSelect') class="relation-item--left"#end>
+                <${tag} #if($model)v-model="${vmodel}"#if(${showWrite}) ${showWrite} #end#end
+                #if($model)
+                    #if($key=='table')
+                        @change="changeData('${showModel}-${model}',i)"
+                        :fieldKey="'${showModel}-${model}'+i"
+                    #else
+                        @change="changeData('${model}',-1)"
+                        :fieldKey="'${model}'"
+                    #end
+                #end
+                #if($jnpfkey=='uploadFile') :list="${vmodel}" #end
+                #if($slot.prepend) prepend="${slot.prepend}" #end
+                #if($slot.append) append="${slot.append}" #end
+                #if($rowIndex) :rowIndex="${rowIndex}" #end
+                #if($formData) :formData="${formData}" #end
+                #if($templateJson) :templateJson="${templateJson}" #end
+                #if($jnpfkey=='relationForm') :queryType=#if(${html.queryType})"${html.queryType}"#else"0"#end #end
+                #if($html.isInvoke) isInvoke #end
+                #if($html.allowhalf) allow-half #end
+                #if($ableRelationIds) :ableRelationIds = "${ableRelationIds}" #end
+                #if($startTime) :startTime="${startTime}" #end
+                #if($endTime) :endTime="${endTime}" #end
+                #if($html.isStorage || $html.isStorage=='0') :isStorage="${html.isStorage}" #end
+                #if($inputalign) input-align='right' #end
+                #if($html.prefixIcon) prefix-icon="${html.prefixIcon}" #end
+                #if($html.showType) showType="${html.showType}" #end
+                #if($html.suffixIcon) suffix-icon="${html.suffixIcon}" #end
+                #if($html.selectType) selectType="${html.selectType}" #end
+                #if($html.useScan) useScan #end
+                #if($html.useMask) useMask #end
+                #if($html.showCount) showCount #end
+                #if($html.showPassword) showPassword #end
+                #if($maskConfig) :maskConfig="${maskConfig}" #end
+                #if($html.autoLocation) autoLocation #end
+                #if($html.enableLocationScope) enableLocationScope #end
+                #if($html.adjustmentScope) :adjustmentScope="${html.adjustmentScope}" #end
+                #if($html.enableDesktopLocation) enableDesktopLocation #end
+                #if($locationScope) :locationScope="${locationScope}" #end
+                #if($html.ableIds) :ableIds="ableAll.${showModel}${model}ableIds" #end
+                #if($html.format) format="${html.format}" #end
+                #if($html.showLevel) showLevel="${html.showLevel}" #end
+                #if($html.optionType) optionType="${html.optionType}" #end
+                #if($html.tipText) tipText="${html.tipText}" #end
+                #if($html.total) :total="${html.total}" #end
+                #if($html.precision) :precision="${html.precision}" #end
+                #if($html.direction) direction="${html.direction}" #end
+                #if($html.isAmountChinese) isAmountChinese #end
+                #if($html.thousands) thousands #end
+                #if($html.addonAfter) addonAfter="${html.addonAfter}" #end
+                #if($html.addonBefore) addonBefore="${html.addonBefore}" #end
+                #if($html.controls) :controls="${html.controls}" #end
+                #if($html.hasPage) hasPage #end
+                #if($html.clearable) clearable #end
+                #if($html.filterable) filterable #end
+                #if($html.propsValue) propsValue="${html.propsValue}" #end
+                #if($html.popupWidth) popupWidth="${html.popupWidth}" #end
+                #if($html.popupTitle) popupTitle="${html.popupTitle}" #end
+                #if($html.popupType) popupType="${html.popupType}" #end
+                #if($relationField) ${relationField} #end
+                #if($relationModel) ${relationModel} #end
+                #if($roleOrgroup) ${roleOrgroup} #end
+                #if($html.showField) showField="${html.showField}" #end
+                #if($modelColumnOptions)  :columnOptions="${modelColumnOptions}"#end
+                #if($modelExtraOptions)  :extraOptions="${modelExtraOptions}"#end
+                #if($html.modelId) modelId="${html.modelId}" #end
+                #if($html.interfaceId) interfaceId="${html.interfaceId}" #end
+                #if($html.pageSize) :pageSize="${html.pageSize}" #end
+                #if($html.sizeUnit) sizeUnit="${html.sizeUnit}" #end
+                #if($html.accept) accept="${html.accept}" #end
+                #if($html.fileSize) :fileSize="${html.fileSize}" #end
+                #if($html.limit) :limit="${html.limit}" #end
+                #if($html.pathType) pathType="${html.pathType}" #end
+                #if($html.sortRule) :sortRule='${html.sortRule}' #end
+                #if($html.timeFormat) timeFormat="${html.timeFormat}" #end
+                #if($html.folder) folder="${html.folder}" #end
+                #if($html.placeholderI18nCode) :placeholder="$t('${html.placeholderI18nCode}')" #elseif(${html.placeholder}) placeholder="${html.placeholder}"#end
+                #if($html.buttonText || $html.buttonTextI18nCode) #if(${html.buttonTextI18nCode}) :buttonText="t('${html.buttonTextI18nCode}', '${html.buttonText}')"
+                #else buttonText="${html.buttonText}" #end#end
+                #if($modelProps)  :props="${modelProps}"#end
+                #if($modelOptions) :options="${modelOptions}"#end
+                #if($modelUpload) :value="${modelUpload}"#end
+                #if($html.multiple) :multiple="${html.multiple}"#end
+                #if($html.maxlength) :maxlength="${html.maxlength}"#end
+                #if($html.min) :min="${html.min}"#end
+                #if($html.level || ${html.level}==0) :level="${html.level}" #end
+                #if($html.count) :max="${html.count}"#end
+                #if($html.max) :max="${html.max}"#end
+                #if($type) type="${type}"#end
+                #if($html.step) :step="${html.step}"#end
+                #if($html.textStyle) :textStyle='${html.textStyle}'#end
+                #if($html.readonly) readonly#end
+                #if($jnpfkey == 'slider' ) style="width: 100%;"#end
+                #if($html.contentPosition) contentPosition="${html.contentPosition}"#end>
+            </${tag}>
+            </u-form-item>
+        </view>
+        #end
+    #end
+#end
+##  获取详情信息
+#macro(AppDetailRendering)
+    #foreach($fieLdsModel in ${context.form})
+        #set($jnpfkey = "${fieLdsModel.jnpfKey}")
+        #set($isEnd = "${fieLdsModel.isEnd}")
+        #set($formModel = ${fieLdsModel.formModel})
+        #set($config=$formModel.config)
+        #set($span=$config.span)
+        #set($outermost = ${formModel.outermost})
+        #set($header = ${formModel.header})
+        #if($jnpfkey=='card' || $jnpfkey=='row')
+            #if(${config.app}==true)
+                #if(${isEnd}=='0')
+                <view class="jnpf-card">
+                    #if($header)
+                        <view class="jnpf-card-cap u-line-1">#if(${formModel.headerI18nCode}){{$t('${formModel.headerI18nCode}')}}#else ${header} #end
+                            #if(${config.tipLabel})<u-icon name="question-circle-fill" class="u-m-l-10" color="#a0acb7"
+                                                           @click="clickIcon(#if(${formModel.headerI18nCode}) $t('${formModel.headerI18nCode}') #else '${header}'#end,#if(${config.tipLabelI18nCode})$t('${config.tipLabelI18nCode}') #else '${config.tipLabel}' #end)"/>#end</view>
+                    #end
+                #else
+                </view>
+                #end
+            #end
+        #elseif($jnpfkey=='tab')
+            #set($tabModel = ${formModel.model})
+            #set($tabNum = ${formModel.childNum})
+            #if(${config.app}==true)
+                #if(${isEnd}=='0')
+                    #if(${outermost}=='0')
+                    <view prop="${formModel.model}">
+                        <u-tabs ref="${formModel.model}Current" :is-scroll="false" :list="${tabModel}Data" name="title" v-model="${tabModel}Current" @change="${tabModel}"/>
+                    <view>
+                    #else
+                    <view v-show="${tabNum} == ${tabModel}Current">
+                    #end
+                #else
+                    #if(${outermost}=='0')
+                    </view>
+                    </view>
+                    #else
+                    </view>
+                    #end
+                #end
+            #end
+        #elseif($jnpfkey=='steps')
+            #set($stepsModel = ${formModel.model})
+            #set($stepNum = ${formModel.childNum})
+            #if(${config.app}==true)
+                #if(${isEnd}=='0')
+                    #if(${outermost}=='0')
+                    <view prop="${formModel.model}">
+                        <u-steps class="step-container" :list="${stepsModel}Data" name="title" :current="${stepsModel}Current"
+                                 #if(${formModel.simple}==true)mode="dot" #else mode="number"#end @change="${stepsModel}"/>
+                    <view>
+                    #else
+                    <view v-show="${stepNum} == ${stepsModel}Current">
+                    #end
+                #else
+                    #if(${outermost}=='0')
+                    </view>
+                    </view>
+                    #else
+                    </view>
+                    #end
+                #end
+            #end
+        #elseif($jnpfkey=='collapse')
+            #set($collapse = "u-collapse")
+            #set($tabNum = ${formModel.childNum})
+            #if(${outermost}=='1')
+                #set($collapse = "u-collapse-item")
+            #end
+            #if(${config.app}==true)
+                #if(${isEnd}=='0')
+                    #if(${outermost}=='0')
+                    <${collapse} ref="${formModel.model}Current" :accordion="${formModel.accordion}" v-model="${formModel.model}Current">
+                    #else
+                    <${collapse} #if($formModel.titleI18nCode) :title="$t('${formModel.titleI18nCode}')" #else title="${formModel.title}"#end
+                    @change="onCollapseChange" :open="${formModel.model}active.indexOf('${formModel.name}')>-1" name="${formModel.name}" class="collapse-item">
+                    #end
+                #else
+                </${collapse}>
+                #end
+            #end
+        #elseif(${noVmodel.contains($jnpfkey)})
+            #set($defaultName="")
+            #set($tag=${config.tag})
+            #set($divider ="")
+            #set($itemBox = "form-item-box")
+            #set($itemLabel = "")
+            #if($jnpfkey=="groupTitle")
+                #set($itemBox="")
+            #elseif($jnpfkey=="divider")
+                #set($divider ="half-width=""200"" height=""80""")
+                #set($defaultName=$formModel.content)
+            #elseif($jnpfkey=="qrcode")
+                #set($itemLabel = "${config.label}")
+            #elseif($jnpfkey=="barcode")
+                #set($itemLabel = "${config.label}")
+            #end
+            #if(${config.app}==true)
+            <view class="u-p-l-20 u-p-r-20 ${itemBox}">
+                #if(${itemBox})
+                <u-form-item #if($itemLabel) #if(${config.labelI18nCode}) :label="$t('${config.labelI18nCode}')+'${context.labelSuffix}'" #else label="${itemLabel}${context.labelSuffix}" #end
+                    #if($config.labelWidth) label-width="${config.labelWidth}"#end
+                    #if(${config.tipLabel}) left-icon="question-circle-fill" @clickIcon="clickIcon(#if(${config.labelI18nCode}) $t('${config.labelI18nCode}') #else '${itemLabel}' #end,#if(${config.tipLabelI18nCode}) $t('${config.tipLabelI18nCode}')#else '${config.tipLabel}') #end" :left-icon-style="{'color':'#a0acb7'}"#end#end>
+                #end
+                <${tag}
+                #if($formModel.dataType) dataType='${formModel.dataType}' :formData="${context.formModel}" :key="timeKey" #end
+                #if($formModel.height) :height='${formModel.height}'#end
+                #if($formModel.width) :width='${formModel.width}'#end
+                #if($formModel.format) format='${formModel.format}'#end
+                #if($formModel.staticText) staticText='${formModel.staticText}'#end
+                #if($formModel.lineColor) lineColor='${formModel.lineColor}'#end
+                #if($formModel.background) background='${formModel.background}'#end
+                #if($formModel.relationField) relationField='${formModel.relationField}_id'#end
+                #if($formModel.colorDark) colorDark='${formModel.colorDark}'#end
+                #if($formModel.colorLight) colorLight='${formModel.colorLight}'#end
+                #if($formModel.title || $formModel.titleI18nCode) #if(${formModel.titleI18nCode}) :title="$t('${formModel.titleI18nCode}', '${formModel.title}')"
+                #else title="${formModel.title}" #end#end
+                #if($formModel.tagIcon) tagIcon='${formModel.tagIcon}'#end
+                #if($formModel.showIcon) showIcon #end
+                #if($formModel.closable) closable #end
+                #if($formModel.target) target='${formModel.target}'#end
+                #if($formModel.href) href='${formModel.href}'#end
+                #if($formModel.buttonText || $formModel.buttonTextI18nCode) #if(${formModel.buttonTextI18nCode}) :buttonText="$t('${formModel.buttonTextI18nCode}', '${formModel.buttonText}')"
+                #else buttonText="${formModel.buttonText}" #end#end
+                #if($formModel.align) align='${formModel.align}'#end
+                #if($formModel.type) type='${formModel.type}'#end
+                #if($formModel.textStyle) :textStyle='${formModel.textStyle}'#end
+                #if($config.defaultValue) value="${config.defaultValue}"#end
+                #if($formModel.helpMessage && ${formModel.content}) helpMessage ="${formModel.helpMessage}" #if(${formModel.helpMessageI18nCode}) :tipLabel="$t('${formModel.helpMessageI18nCode}')"
+                #else  tipLabel="${formModel.helpMessage}"#end @groupIcon="clickIcon(#if(${formModel.contentI18nCode}) $t('${formModel.contentI18nCode}') #else `${formModel.content}` #end,#if(${formModel.helpMessageI18nCode}) $t('${formModel.helpMessageI18nCode}')#else `${formModel.helpMessage}` #end)" #end
+                #if($divider) ${divider}#end
+                #if($formModel.helpMessage) #if(${formModel.helpMessageI18nCode}) :helpMessage ="$t('${formModel.helpMessageI18nCode}')" #else helpMessage ="${formModel.helpMessage}" #end #end
+                #if($formModel.content) #if(${formModel.contentI18nCode}) :value="$t('${formModel.contentI18nCode}')"#else value="${formModel.content}" #end #if(${formModel.contentI18nCode}) :content="$t('${formModel.contentI18nCode}')"#else content="${formModel.content}" #end#end
+                #if($formModel.contentPosition) contentPosition="${formModel.contentPosition}" #end>
+                #if(${defaultName})
+                    $!{defaultName}
+                #end
+            </${tag}>
+                #if(${itemBox})
+                    </u-form-item>
+                #end
+            </view>
+            #end
+        #elseif($jnpfkey=='mastTable')
+            #set($mastTableModel = $fieLdsModel.formMastTableModel)
+            #set($html = $mastTableModel.mastTable.fieLdsModel)
+            #set($formModel="${context.formModel}")
+            #set($showModel="")
+            #set($tableFieldModel="")
+            #appDetail('mastTable' $html $formModel $showModel $tableFieldModel)
+        #elseif($jnpfkey=='mast')
+            #set($html = $fieLdsModel.formColumnModel.fieLdsModel)
+            #set($formModel = "${context.formModel}")
+            #set($showModel="")
+            #set($tableFieldModel="")
+            #appDetail('mast' $html $formModel $showModel $tableFieldModel)
+        #elseif($jnpfkey=='table')
+            #set($child = $fieLdsModel.childList)
+            #set($tableModel = ${child.tableModel})
+            #set($tableFieldModel="${tableModel}")
+            #set($childApp=$child.app)
+            #set($className = "")
+            #foreach($children in ${context.children})
+                #if(${children.tableModel}==${child.tableModel})
+                    #set($className = "${children.className}")
+                #end
+            #end
+            #set($showJudge= "")
+            #set($showTableWrite="")
+            #if($childApp == true)
+            <view class="jnpf-table"#if(${showJudge}) $showJudge#end #if($useFormPermission==true) v-if="${setPermission}.hasFormP('${tableModel}',menuId)"#end>
+                <view class="jnpf-table-title u-line-1">
+                    #if(${child.labelI18nCode}) {{$t('${child.labelI18nCode}')}} #else ${child.label} #end
+                    #if(${child.tipLabel})
+                        <u-icon name="question-circle-fill" class="u-m-l-10" color="#a0acb7" @click="clickIcon(#if(${child.labelI18nCode}) $t('${child.labelI18nCode}') #else '${child.label}'#end,#if(${child.tipLabelI18nCode}) $t('${child.tipLabelI18nCode}') #else '${child.tipLabel}'#end)"/>
+                    #end
+                </view>
+                <view class="jnpf-table-item" v-for="(item,i) in ${context.formModel}.${tableFieldModel}" :key="i">
+                    <view class="jnpf-table-item-title">
+                        <view class="jnpf-table-item-title-num">({{i+1}})</view>
+                    </view>
+                    #foreach($childListAll in ${child.childList})
+                        #set($html = $childListAll.fieLdsModel)
+                        #set($formModel="${context.formModel}.${tableFieldModel}[i]")
+                        #set($showModel="${className}")
+                        #appDetail('table' $html $formModel $showModel $tableFieldModel)
+                    #end
+                </view>
+                #set($showSummary = $child.showSummary)
+                #if($showSummary)
+                    <view class="jnpf-table-item" v-if="Object.keys(${className}()).length">
+                        <view class="jnpf-table-item-title u-flex u-row-between">
+                            <text class="jnpf-table-item-title-num">#if(${child.labelI18nCode}){{$t('${child.labelI18nCode}')}}#else${child.label}#end{{$t('component.table.summary','合计')}}</text>
+                        </view>
+                        <view class="u-p-l-20 u-p-r-20 form-item-box">
+                            <u-form-item v-for="(item,i) in ${className}()" :key="i" :label="item.name">
+                                <JnpfInput v-model="item.val" disabled placeholder="" />
+                            </u-form-item>
+                        </view>
+                    </view>
+                #end
+            </view>
+            #end
+        #end
+    #end
+#end
+#macro(appDetail $key $html $formModel $showModel $tableFieldModel)
+    #set($model = "${html.vModel}")
+    #set($slot = ${html.slot})
+    #set($prop="${html.vModel}")
+    #set($config = $html.config)
+    #set($show = ${config.noShow})
+    #set($vmodel="${formModel}.${model}")
+    #set($labelSuffix="${context.labelSuffix}")
+    #set($jnpfkey="${config.jnpfKey}")
+    #set($tag="view")
+    #set($list="${model}")
+    #set($maskConfig = "maskConfig.${model}")
+    #set($type=${html.type})
+    #set($showJudge= "")
+    #set($inputalign="")
+    #set($isStorage="${html.isStorage}")
+    #set($hasFormP="#if($tableFieldModel)${tableFieldModel}-#end${model}")
+    #set($relationField="")
+    #set($relationModel = "")
+    #set($roleOrgroup = "")
+    #set($permission = "${useFormPermission}")
+    #set($childoptions="")
+    #set($ableRelationIds="")
+    #if($jnpfkey=='userSelect' && ${html.relationField})
+        #set($ableRelationIds="${context.formModel}.${html.relationField}")
+    #end
+    #set($configLabel="${config.label}")
+    #if($jnpfkey=='roleSelect' || $jnpfkey=='groupSelect')
+        #set($roleOrgroup = "vModel='"+${prop}+"'")
+    #end
+    #if($jnpfkey=='relationForm' || $jnpfkey=='popupSelect'|| $jnpfkey=='popupTableSelect')
+        #set($relationField = "relationField='"+${html.relationField}+"'")
+        #set($relationModel = "vModel='"+${prop}+"'")
+    #end
+    #if($jnpfkey=='popupAttr' || $jnpfkey=='relationFormAttr')
+        #set($relationField = "relationField='"+${html.relationField}+"'")
+        #set($showList = "")
+        #set($showJudge = "")
+        #set($permission = "${useFormPermission}")
+        #if($isStorage=='0')
+            #set($hasFormP="#if($tableFieldModel)${tableFieldModel}-#end${html.relationField}")
+            #set($model = "${html.relationField}")
+            #set($vmodel="${formModel}.${html.relationField}_${html.showField}")
+        #end
+    #end
+    #if($key=='table')
+        #set($labelSuffix="")
+        #set($prop="")
+        #set($childoptions="${showModel}")
+        #if($jnpfkey=='relationForm' || $jnpfkey=='popupSelect'|| $jnpfkey=='popupTableSelect')
+            #set($relationModel = ":vModel=""'"+${model}+"'+i""")
+            #if($jnpfkey=='relationForm' || $jnpfkey=='popupSelect')
+                #set($relationModel = ":vModel=""'"+${model}+"_JnpfTable_"+${config.relationTable}+"'+i""")
+            #end
+        #end
+        #if($jnpfkey=='popupAttr' || $jnpfkey=='relationFormAttr')
+            #set($relationField = ":relationField=""'"+${html.relationField}+"_JnpfTable_"+${config.relationTable}+"'+i""")
+            #set($showList = "")
+            #set($permission = "${useFormPermission}")
+            #if($isStorage=='0')
+                #set($hasFormP="#if($tableFieldModel)${tableFieldModel}-#end${html.relationField}")
+                #set($model = "${html.relationField}")
+                #set($vmodel="${formModel}.${html.relationField}_${html.showField}")
+            #end
+        #end
+        #if($jnpfkey=='userSelect' && ${html.relationField})
+            #set($ableRelationIds="${context.formModel}.${showModel}List[i].${html.relationField}")
+        #end
+        #set($maskConfig = "maskConfig.${showModel}${model}")
+    #end
+    #if($jnpfkey=='input' || $jnpfkey=='textarea' || $jnpfkey=='modifyUser' || $jnpfkey=='modifyTime' || $jnpfkey=='billRule')
+        #set($inputalign="right")
+    #end
+    #if($jnpfkey=='inputNumber')
+        #set($tag = "jnpf-number-box")
+    #elseif($jnpfkey=='slider')
+        #set($tag = "jnpf-slider")
+    #elseif($jnpfkey=='input')
+        #set($tag = "jnpf-input")
+    #elseif($jnpfkey=='rate')
+        #set($tag = "jnpf-rate")
+    #elseif($jnpfkey=='editor')
+        #set($configLabel="")
+        #set($tag = "jnpf-editor")
+    #elseif($jnpfkey=='uploadImg')
+        #set($tag = "jnpf-upload")
+    #elseif($jnpfkey=='uploadFile')
+        #set($tag = "jnpf-file")
+    #elseif($jnpfkey=='sign')
+        #set($tag = "jnpf-sign")
+    #elseif($jnpfkey=='location')
+        #set($tag = "jnpf-location")
+    #elseif($jnpfkey=='colorPicker')
+        #set($tag = "jnpf-colorPicker")
+    #elseif($jnpfkey=='signature')
+        #set($tag = "jnpf-signature")
+    #end
+    #if($config.tag && $tag!='view')
+        #set($tag = $config.tag)
+    #end
+    #if($NoGenerate.contains($jnpfkey))
+        #set($tag="")
+    #end
+    #set($end ="/"+ ${tag})
+    #if($show == false && ${config.app}==true)
+        #if($tag)
+        <view class="u-p-l-20 u-p-r-20 form-item-box">
+            <u-form-item #if($permission) #if($useFormPermission==true) v-if="${setPermission}.hasFormP('${hasFormP}',menuId)"#end#end
+                #if($config.showLabel && $config.showLabel == true)
+                    #if($configLabel) #if(${config.labelI18nCode}) :label="$t('${config.labelI18nCode}')+'${labelSuffix}'"#else label="${configLabel}${labelSuffix}" #end#end
+                    #if((${config.labelI18nCode} || $config.tipLabel) && $jnpfkey!='editor' && $configLabel) left-icon="question-circle-fill" @clickIcon="clickIcon(#if(${config.labelI18nCode}) $t('${config.labelI18nCode}')#else'${configLabel}' #end,#if(${config.tipLabelI18nCode}) $t('${config.tipLabelI18nCode}') #else '${config.tipLabel}'#end)" :left-icon-style="{'color':'#a0acb7'}" #end
+                    #if($showJudge) ${showJudge}#end
+                    #if($config.labelWidth) label-width="${config.labelWidth}"#end#end
+                    #if($jnpfkey=='relationForm' || $jnpfkey=='popupSelect') class="relation-item--left"#end>
+                <${tag}
+                #set($classText="jnpf-detail-text")
+                #if($jnpfkey=='editor')
+                    #set($classText="editor-box")
+                #end
+                class = "${classText}"
+                #if($html.count) :max="${html.count}"#end
+                #if($html.max) :max="${html.max}"#end
+                #if(${showModelList.contains($jnpfkey)}) v-model="${vmodel}"
+                    #if(${showModelDisabledList.contains($jnpfkey)}) disabled #else detailed #end
+                    #if(${maskConfig}) :maskConfig="${maskConfig}"  #end
+                #end
+                #if($html.buttonText || $html.buttonTextI18nCode) #if(${html.buttonTextI18nCode}) :buttonText="t('${html.buttonTextI18nCode}', '${html.buttonText}')"
+                #else buttonText="${html.buttonText}" #end#end
+                #if($jnpfkey=='editor') :html="${vmodel}" #end
+                #if($jnpfkey=='sign') :fieldKey="${html.vModel}" #end
+                #if($jnpfkey=='relationForm') @click.native="toDetail(${vmodel}_id,'${html.modelId}')" #end
+                #if($slot.prepend) prepend="${slot.prepend}" #end
+                #if($slot.append) append="${slot.append}" #end
+                #if($html.allowhalf) allow-half #end
+                #if($ableRelationIds) :ableRelationIds = "${ableRelationIds}" #end
+                #if($html.isStorage || $html.isStorage=='0') isStorage="${html.isStorage}" #end
+                #if($inputalign) input-align='right' #end
+                #if($html.prefixIcon) prefix-icon="${html.prefixIcon}" #end
+                #if($html.suffixIcon) suffix-icon="${html.suffixIcon}" #end
+                #if($html.selectType) selectType="${html.selectType}" #end
+                #if($html.description) description="${html.description}" #end
+                #if($html.closeText) closeText="${html.closeText}" #end
+                #if($html.direction) direction="${html.direction}" #end
+                #if($html.isAmountChinese) isAmountChinese #end
+                #if($html.thousands) thousands #end
+                #if($html.useMask) useMask #end
+                #if($html.enableLocationScope) enableLocationScope #end
+                #if($html.addonAfter) addonAfter="${html.addonAfter}" #end
+                #if($html.addonBefore) addonBefore="${html.addonBefore}" #end
+                #if($html.controls) :controls="${html.controls}" #end
+                #if($html.hasPage) hasPage #end
+                #if($html.filterable || $html.filterable=='false') :showSearch='${html.filterable}' #end
+                #if($html.propsValue) propsValue="${html.propsValue}" #end
+                #if($html.popupWidth) popupWidth="${html.popupWidth}" #end
+                #if($html.popupTitle) popupTitle="${html.popupTitle}" #end
+                #if($html.popupType) popupType="${html.popupType}" #end
+                #if($relationField) ${relationField} #end
+                #if($relationModel) ${relationModel} #end
+                #if($roleOrgroup) ${roleOrgroup} #end
+                #if($html.showField) showField="${html.showField}" #end
+                #if($html.modelId) modelId="${html.modelId}" #end
+                #if($html.interfaceId) interfaceId="${html.interfaceId}" #end
+                #if($html.pageSize) :pageSize="${html.pageSize}" #end
+                #if($html.accept) accept="${html.accept}" #end
+                #if($html.folder) folder="${html.folder}" #end
+                #if($html.multiple) :multiple="${html.multiple}"#end
+                #if($html.maxlength) :maxlength="${html.maxlength}"#end
+                #if($html.min) :min="${html.min}"#end
+                #if($html.level || ${html.level}==0) :level="${html.level}" #end
+                #if($type) type="${type}"#end
+                #if($html.step) :step="${html.step}"#end
+                #if($html.textStyle) :textStyle='${html.textStyle}'#end
+                #if($html.readonly) readonly#end
+                #if($html.contentPosition) contentPosition="${html.contentPosition}"#end>
+                #if($model &&  !${showModelList.contains($jnpfkey)})
+                    #if($jnpfkey=='relationForm')
+                <view class="jnpf-detail-text" style="color:rgb(41, 121, 255)">
+                    {{${vmodel}}}
+                </view>
+                    #else
+                {{${vmodel}}}
+                    #end
+                #end
+                #if($key!='table' && ${extraList.contains($jnpfkey)})
+                <DisplayList v-if="Object.keys(extraOptions.${model}ExtraOptions).length" :extraObj="extraData.${model}" :extraOptions="extraOptions.${model}ExtraOptions">
+                </DisplayList>
+                #end
+            </${tag}>
+            </u-form-item>
+        </view>
+        #end
+    #end
+#end
+##  联动
+#macro(appableAll $fieLdsModel,$childList)
+    #set($html = $fieLdsModel)
+    #set($vModel = "${childList}${html.vModel}")
+    #set($config = $html.config)
+    #set($dataType = "${config.dataType}")
+    #if(${html.ableIds})
+        ${vModel}ableIds:${html.ableIds},
+    #end
+#end
+##  必填
+#macro(appRule $fieLdsModel)
+    #set($html = $fieLdsModel)
+    #set($vModel = "${html.vModel}")
+    #set($config = $html.config)
+    #set($label = "${config.label}")
+    #set($jnpfkey = "${config.jnpfKey}")
+    #set($listSize=$!{config.regList})
+    #set($defaultValue=${config.defaultValue})
+    #set($defaultValueSize=$!{config.defaultValue})
+    #set($trigger = ${config.trigger})
+    #if(${trigger.substring(0,1)}!='[')
+        #set($trigger = "'"+ ${config.trigger}+ "'")
+    #end
+    #if($vModel)
+        #if(!$config.defaultValue && $config.defaultValue==[])
+            #set($messages='请至少选择一个')
+        #elseif(${config.defaultValue} && (${defaultValueSize} || $defaultValueSize.size()>0))
+            #set($messages='请至少选择一个')
+        #elseif($html.placeholder)
+            #set($messages=${html.placeholder})
+        #else
+            #set($messages='不能为空')
+        #end
+        #if(${config.required}==true|| (${listSize} && $listSize.size()>0))
+            ${vModel}: [
+            #if($config.required==true)
+            {
+            required: true,
+            message: '${label}$!{messages}',
+                #if($jnpfkey=='checkbox' || $jnpfkey=='timeRange' || $jnpfkey=='dateRange' || $jnpfkey=='areaSelect' || $jnpfkey=='cascader')
+                type:'array',
+                #elseif($jnpfkey=='uploadFile' || $jnpfkey=="uploadImg")
+                type:'array',
+                #elseif($jnpfkey=='organizeSelect' || $jnpfkey=='userSelect' || $jnpfkey=='usersSelect' || $jnpfkey=='select' || $jnpfkey=='depSelect' || $jnpfkey=='posSelect' || $jnpfkey=='popupTableSelect'|| $jnpfkey=='groupSelect'|| $jnpfkey=='roleSelect' || $jnpfkey=='treeSelect')
+                    #if(${html.multiple}=='true')
+                    type:'array',
+                    #end
+                #end
+            },
+            #end
+            #if($listSize.size()>0)
+                #foreach($regList in ${config.regList})
+                {
+                pattern: ${regList.pattern},
+                message: '${label}${regList.message}',
+                    #if($jnpfkey=='checkbox' || $jnpfkey=='timeRange' || $jnpfkey=='dateRange' || $jnpfkey=='areaSelect' || $jnpfkey=='cascader')
+                    type:'array',
+                    #elseif($jnpfkey=='uploadFile' || $jnpfkey=="uploadImg")
+                    type:'array',
+                    #elseif($jnpfkey=='organizeSelect' || $jnpfkey=='userSelect' || $jnpfkey=='usersSelect' || $jnpfkey=='select' || $jnpfkey=='depSelect' || $jnpfkey=='posSelect' || $jnpfkey=='popupTableSelect'|| $jnpfkey=='groupSelect'|| $jnpfkey=='roleSelect' || $jnpfkey=='treeSelect')
+                        #if(${html.multiple}=='true')
+                        type:'array',
+                        #end
+                    #end
+                },
+                #end
+            #end
+        ],
+        #end
+    #end
+#end
+##  下拉数据
+#macro(list $fieLdsModel,$childList)
+    #set($html = $fieLdsModel)
+    #set($vModel = "${childList}${html.vModel}")
+    #set($config = $html.config)
+    #set($jnpfkey = "$config.jnpfKey")
+    #if(${config.dataType}=='dictionary'||${config.dataType}=='dynamic')
+        ${vModel}Options:[],
+    #elseif(${config.dataType} == "static")
+        #if($html.slot.options)
+            ${vModel}Options:${html.slot.options},
+        #elseif($html.options)
+            ${vModel}Options:${html.options},
+        #end
+    #end
+    #if($html.props)
+        #set($propsModel = ${html.props})
+        ${vModel}Props:{"label":"${propsModel.label}","value":"${propsModel.value}","multiple":${propsModel.multiple},"children":"${propsModel.children}"},
+    #end
+    #if($config.props)
+        ${vModel}Props:{"label":"${config.props.label}","value":"${config.props.value}"},
+    #end
+    #if($jnpfkey=='relationForm' || $jnpfkey=='popupSelect' || $jnpfkey=='popupTableSelect')
+        ${vModel}ColumnOptions:[
+            #foreach($columnOptions in  ${html.columnOptions})
+            {
+            "label":"${columnOptions.label}",
+            "value":"${columnOptions.value}"
+            },
+            #end
+        ],
+        #extraOptions($fieLdsModel,$childList)
+    #end
+#end
+##  弹窗列表展示
+#macro(extraOptions $fieLdsModel,$childList)
+    #set($html = $fieLdsModel)
+    #set($vModel = "${childList}${html.vModel}")
+    #set($config = $html.config)
+    #set($jnpfkey = "$config.jnpfKey")
+    #if($jnpfkey=='relationForm' || $jnpfkey=='popupSelect' || $jnpfkey=='popupTableSelect')
+        ${vModel}ExtraOptions:[
+            #foreach($extraOptions in  ${html.extraOptions})
+            {
+            "label":"${extraOptions.label}",
+            "value":"${extraOptions.value}"
+            },
+            #end
+        ],
+    #end
+#end
+##  弹窗数据
+#macro(extraData $fieLdsModel,$childList,$data)
+    #set($html = $fieLdsModel)
+    #set($vModel = "${childList}${html.vModel}")
+    #set($config = $html.config)
+    #set($jnpfkey = "$config.jnpfKey")
+    #if($jnpfkey=='relationForm' || $jnpfkey=='popupSelect')
+        #if($data)
+            #if($jnpfkey=='relationForm')
+        get${vModel}ExtraInfo(){
+            if (!this.${context.formModel}.${vModel}_id) return;
+            let query = {
+                id: this.${context.formModel}.${vModel}_id,
+                #if(${html.propsValue})propsValue: '${html.propsValue}'#end
+            };
+            getRelationFormDetail('${html.modelId}', query).then(res => {
+                if (!res.data || !res.data.data) return
+                let data = JSON.parse(res.data.data)
+                this.extraData.${vModel} = data
+            })
+        },
+            #else
+        get${vModel}ExtraInfo(){
+            if (!this.${context.formModel}.${vModel}_id) return;
+            const paramList = this.getParamList('${vModel}');
+            const query = {
+                ids: [this.${context.formModel}.${vModel}_id],
+                interfaceId: '${html.interfaceId}',
+                propsValue: '${html.propsValue}',
+                relationField: '${html.relationField}',
+                paramList,
+            };
+            getDataInterfaceDataInfoByIds('${html.interfaceId}', query).then(res => {
+                const data = res.data && res.data.length ? res.data[0] : {};
+                this.extraData.${vModel} = data;
+            });
+        },
+            #end
+        #else
+        this.get${vModel}ExtraInfo()
+        #end
+    #end
+#end
+##  option方法
+#macro(options $fieLdsModel,$childList)
+    #set($html = $fieLdsModel)
+    #set($vModel = "${childList}${html.vModel}")
+    #set($config = $html.config)
+    #set($dataType = "${config.dataType}")
+    #if(${dataType}=='dictionary' || ${dataType}=='dynamic')
+    this.get${vModel}Options()
+    #end
+#end
+##  option接口
+#macro(optionsData $fieLdsModel,$childList)
+    #set($html = $fieLdsModel)
+    #set($vModel = "${childList}${html.vModel}")
+    #set($config = $html.config)
+    #set($dataType = "${config.dataType}")
+    #set($jnpfkey="${config.jnpfKey}")
+    #set($changeDataFormType = "1")
+    #set($changeDataFormData = "${html.vModel}")
+    #if($childList)
+        #set($changeDataFormData = "${childList}"+"List")
+        #set($changeDataFormType = "2")
+    #end
+    #set($defaultValue='""')
+    #if($!config.valueType=='String')
+        #set($defaultValue="'$!{config.defaultValue}'")
+    #elseif($!config.valueType=='undefined')
+        #set($defaultValue='""')
+    #else
+        #set($defaultValue=$!{config.defaultValue})
+    #end
+    #if(${dataType}=='dictionary')
+    get${vModel}Options() {
+        getDictionaryDataSelector('${config.dictionaryType}').then(res => {
+            this.${vModel}Options = res.data.list
+        })
+    },
+    #elseif(${dataType}=='dynamic')
+    get${vModel}Options() {
+        const edit = this.isEdit
+        const index = this.childIndex
+        let templateJsonList = JSON.parse(JSON.stringify(this.interfaceRes.${vModel}))
+        for (let i = 0; i < templateJsonList.length; i++) {
+            let json = templateJsonList[i];
+            if(json.relationField && json.sourceType == 1){
+                let relationFieldAll = json.relationField.split("-");
+                let val = json.defaultValue;
+                if(relationFieldAll.length>1 && index>-1){
+                    val = this.${context.formModel}[relationFieldAll[0]+'List']&&this.${context.formModel}[relationFieldAll[0]+'List'].length?this.${context.formModel}[relationFieldAll[0]+'List'][index][relationFieldAll[1]]:''
+                }else {
+                    val = this.${context.formModel}[relationFieldAll]?this.${context.formModel}[relationFieldAll]:""
+                }
+                json.defaultValue = val
+            }
+        }
+        let template ={
+            paramList:templateJsonList
+        }
+        getDataInterfaceRes('${config.propsUrl}',template).then(res => {
+            let data = res.data
+            this.${vModel}Options = data
+            #if($childList)
+            if(index==-1) return
+            this.${context.formModel}.${childList}List[index].${html.vModel}Options =data
+            #end
+            if (!edit) return
+            this.changeDataFormData(${changeDataFormType},'${changeDataFormData}','${html.vModel}',index,${defaultValue},edit)
+        })
+    },
+    #end
+#end
+##  用户联动
+#macro(ableRelation $fieLdsModel,$childList)
+    #set($html = $fieLdsModel)
+    #set($vModel = "${childList}${html.vModel}")
+    #set($config = $html.config)
+    #set($dataType = "${config.dataType}")
+    #set($relationField = ${html.relationField})
+    #set($relationChild = "${html.relationChild}")
+    #if(${vModel} && ${relationField})
+        #if($relationChild)
+            #if($childList)${childList}#end${relationField}:"#if($childList)${childList}-#end${html.vModel}",
+        #else
+            ${relationField}:"${vModel}",
+        #end
+    #end
+#end
+##  远端数据
+#macro(faceRes $fieLdsModel,$childList)
+    #set($html = $fieLdsModel)
+    #set($vModel = "${childList}${html.vModel}")
+    #set($config = $html.config)
+    #set($dataType = "${config.dataType}")
+    #if(${vModel})
+    ${vModel}:[
+        #foreach($templateJson in ${config.templateJson})
+        {
+            fieldName:"${templateJson.fieldName}",
+            field:"${templateJson.field}",
+            defaultValue:"${templateJson.defaultValue}",
+            jnpfKey:"$!{templateJson.jnpfKey}",
+            dataType:"${templateJson.dataType}",
+            id:"${templateJson.id}",
+            required:"${templateJson.required}",
+            relationField:"${templateJson.relationField}",
+            sourceType:${templateJson.sourceType},
+        },
+        #end
+    ],
+    #end
+#end
+##  单行输入
+#macro(maskConfig $fieLdsModel,$childList)
+    #set($html = $fieLdsModel)
+    #set($vModel = "${childList}${html.vModel}")
+    #if(${vModel})
+    ${vModel}:{
+        #set($config = ${html.maskConfig})
+        #if($config)
+        filler:"${config.filler}",
+        maskType:${config.maskType},
+        prefixType:${config.prefixType},
+        prefixLimit:${config.prefixLimit},
+        prefixSpecifyChar:"${config.prefixSpecifyChar}",
+        suffixType:${config.suffixType},
+        suffixLimit:${config.suffixLimit},
+        suffixSpecifyChar:"${config.suffixSpecifyChar}",
+        ignoreChar:"${config.ignoreChar}",
+        useUnrealMask:${config.useUnrealMask},
+        unrealMaskLength:${config.unrealMaskLength},
+        #end
+    },
+    #end
+#end
+##  定位
+#macro(locationScope $fieLdsModel,$childList)
+    #set($html = $fieLdsModel)
+    #set($vModel = "${childList}${html.vModel}")
+    #if(${vModel})
+    ${vModel}:[
+        #foreach($locationScope in ${html.locationScope})
+        {
+            lng:${locationScope.lng},
+            lat:${locationScope.lat},
+            radius:${locationScope.radius},
+            name:"$!{locationScope.name}",
+            id:"${locationScope.id}",
+        },
+        #end
+    ],
+    #end
+#end
+##  默认值
+#macro(formDefaultData $key $fieLdsModel $formModel)
+    #set($html = $fieLdsModel)
+    #set($eachFiled = "${html.vModel}")
+    #set($config = $html.config)
+    #set($jnpfkey = "${config.jnpfKey}")
+    #set($defaultCurrent=${config.defaultCurrent})
+    #set($multiple=${html.multiple})
+    #set($format=${html.format})
+    #set($timeFormat = "this."+'$'+"u.timeFormat")
+    #if($defaultCurrent)
+        #if($jnpfkey=='datePicker')
+            ${formModel}.${eachFiled} = new Date().getTime()
+        #elseif($jnpfkey=='timePicker')
+            ${formModel}.${eachFiled} = ${timeFormat}(new Date().getTime(),this.formatType['${format}'])
+        #elseif($jnpfkey=='depSelect')
+        if(this.userInfo.departmentId != null && this.userInfo.departmentId != '') {
+            #if($multiple)
+                ${formModel}.${eachFiled} = [this.userInfo.departmentId]
+            #else
+                ${formModel}.${eachFiled} = this.userInfo.departmentId
+            #end
+        }
+        #elseif($jnpfkey=="organizeSelect" )
+            #if($multiple)
+            if(this.userInfo.organizeIds instanceof Array && this.userInfo.organizeIds.length > 0) {
+                ${formModel}.${eachFiled} = this.userInfo.organizeIds
+            }
+            #else
+            if(this.userInfo.organizeId) {
+                ${formModel}.${eachFiled} = this.userInfo.organizeId
+            }
+            #end
+        #elseif($jnpfkey=='userSelect')
+            #if($multiple)
+                ${formModel}.${eachFiled} = [this.userInfo.userId]
+            #else
+                ${formModel}.${eachFiled} = this.userInfo.userId
+            #end
+        #elseif($jnpfkey=='posSelect')
+            #if($multiple)
+            if(this.userInfo.positionIds instanceof Array && this.userInfo.positionIds.length > 0) {
+                ${formModel}.${eachFiled} = this.userInfo.positionIds
+            }
+            #else
+            if(this.userInfo.positionId) {
+                ${formModel}.${eachFiled} = this.userInfo.positionId
+            }
+            #end
+        #elseif($jnpfkey=='roleSelect')
+        if(this.userInfo.roleIds instanceof Array && this.userInfo.roleIds.length > 0) {
+            #if($multiple)
+                ${formModel}.${eachFiled} = this.userInfo.roleIds
+            #else
+                ${formModel}.${eachFiled} = this.userInfo.roleIds[0]
+            #end
+        }
+        #elseif($jnpfkey=='groupSelect')
+        if(this.userInfo.groupIds instanceof Array && this.userInfo.groupIds.length > 0) {
+            #if($multiple)
+                ${formModel}.${eachFiled} = this.userInfo.groupIds
+            #else
+                ${formModel}.${eachFiled} = this.userInfo.groupIds[0]
+            #end
+        }
+        #elseif($jnpfkey=='usersSelect')
+            #if($multiple)
+                ${formModel}.${eachFiled} = [this.userInfo.userId+"--user"]
+            #else
+                ${formModel}.${eachFiled} = this.userInfo.userId+"--user"
+            #end
+        #elseif($jnpfkey=='sign')
+        if(this.userInfo.signImg != null && this.userInfo.signImg != '') {
+            ${formModel}.${eachFiled} = this.userInfo.signImg
+        }
+        #end
+    #end
+#end
+#macro(indexDefaultData $key $fieLdsModel $formModel)
+    #set($eachFiled = "${fieLdsModel.vModel}")
+    #set($value = ${fieLdsModel.value})
+    #set($config=$fieLdsModel.config)
+    #set($valueType=$config.valueType)
+    #if($config.isFromParam) #set($isFromParam =$config.isFromParam) #else #set($isFromParam = false) #end
+    #if($fieLdsModel.searchMultiple) #set($searchMultiple =$fieLdsModel.searchMultiple) #else #set($searchMultiple = false) #end
+    #set($sourceType=$fieLdsModel.sourceType)
+    #if(${searchSystemParam.contains(${fieLdsModel.config.jnpfKey})} && $sourceType == 4)
+        #set($value="jnpf.getSearchRealValue('$value','$!fieLdsModel.format',now, $isFromParam,$searchMultiple)")
+    #elseif($valueType=='String')
+        #set($value="'"+$value+"'")
+    #end
+    #if($value)
+        ${formModel}.${eachFiled} = $value
+    #end
+#end
+##  列表控件
+#macro(codeIndex $formModel)
+    #set($html = $formModel)
+    #set($config = $html.config)
+    #set($jnpfkey = "${config.jnpfKey}")
+    #set($isFromParam = $config.isFromParam)
+    #set($dateType = "")
+    #set($model = "${html.vModel}")
+    #set($label = $html.label)
+    #set($mastModel="searchForm."+"${model}")
+    #set($tag = "$jnpfkey")
+    #set($type = "")
+    #set($bh = "")
+    #set($inputalign="")
+    #if($jnpfkey=='input' || $jnpfkey=='textarea' || $jnpfkey=='billRule')
+        #set($inputalign="right")
+    #elseif($jnpfkey=='datePicker'||  $jnpfkey=='createTime' || $jnpfkey=='modifyTime' || $jnpfkey=='timePicker')
+        #set($dateType = "date")
+        #if($jnpfkey=='timePicker')
+            #set($dateType = "time")
+        #end
+    #elseif($jnpfkey=='userSelect' || $jnpfkey=='createUser' ||  $jnpfkey=='modifyUser')
+        #set($bh = "650")
+    #elseif($jnpfkey=='organizeSelect' || $jnpfkey=='depSelect' || $jnpfkey=='posSelect' || $jnpfkey=='currOrganize' || $jnpfkey=='currDept' || $jnpfkey=='currPosition')
+        #if($jnpfkey=='depSelect' || $jnpfkey=='currDept')
+            #set($type = "department")
+        #elseif($jnpfkey=='posSelect' || $jnpfkey=='currPosition')
+            #set($type = "position")
+        #end
+    #end
+    #set($tag=${config.tag})
+    #if($jnpfkey=='checkbox'||$jnpfkey=='select'||$jnpfkey=='radio')
+        #set($tag="JnpfSelect")
+    #end
+    #if($jnpfkey=='posSelect' || $jnpfkey=='currPosition')
+        #set($tag="JnpfPosSelect")
+    #end
+    #if($jnpfkey=='depSelect' || $jnpfkey=='currDept')
+        #set($tag="JnpfDepSelect")
+    #end
+    #if($jnpfkey=='organizeSelect' || $jnpfkey=='currOrganize')
+        #set($tag="JnpfOrganizeSelect")
+    #end
+    #if($jnpfkey=='inputNumber' || $jnpfkey=='calculate' || $jnpfkey=='slider' || $jnpfkey=='rate')
+        #set($tag="JnpfNumberRange")
+    #end
+    #if($jnpfkey=='input' || $jnpfkey=='text'|| $jnpfkey=='link'|| $jnpfkey=='billRule' || $jnpfkey=='location')
+        #set($tag="JnpfInput")
+    #end
+    #if($jnpfkey=='userSelect' || $jnpfkey=='createUser' ||  $jnpfkey=='modifyUser')
+        #set($tag="JnpfUserSelect")
+    #end
+    #if($jnpfkey=='datePicker'||  $jnpfkey=='createTime' || $jnpfkey=='modifyTime' )
+        #if($isFromParam)
+            #set($tag="JnpfDatePicker")
+        #else
+            #set($tag="JnpfDateRange")
+        #end
+    #end
+    #if($jnpfkey=='timePicker')
+        #set($tag="JnpfTimeRange")
+    #end
+    #set($placeholder="common.chooseText")
+    #if($jnpfkey=='input' || $jnpfkey=='textarea'||  $jnpfkey=='billRule')
+        #set($placeholder="common.inputText")
+    #end
+    #set($modelprops="")
+    #set($modeloptions="")
+    #if($jnpfkey=='radio' || $jnpfkey=='checkbox' || $jnpfkey=='select' || $jnpfkey=='cascader' || $jnpfkey=='treeSelect')
+        #set($modelprops="${model}Props")
+        #set($modeloptions="${model}Options")
+    #end
+    #if($NoGenerate.contains($jnpfkey))
+        #set($tag="")
+    #end
+    #if($tag && !${html.noShow})
+<u-form-item #if(${html.labelI18nCode}) :label="$t('${html.labelI18nCode}','${label}')" #else label= "${label}"#end>
+        <$tag v-model="${mastModel}"
+        #if($tag!='JnpfDateRange' && $tag!='JnpfTimeRange')
+        :placeholder="$t('${placeholder}')+ ' ' + #if(${html.labelI18nCode})$t('${html.labelI18nCode}','${label}')#else'${label}'#end"
+        #end
+        :key="'${mastModel}'"
+        #if(${filterableModel.contains($jnpfkey)}) filterable #end
+        #if($dateType) jnpfKey="${dateType}" #end
+        #if(${bh}) :bh="650" #end
+        #if($inputalign) input-align='right' #end
+        #if(${type}) type="${type}"#end
+        #set($selectTypes = ${html.selectType})
+        #if(${selectTypes}!='custom')
+            #set($selectTypes = "all")
+        #end
+        #if($html.total) :total="${html.total}" #end
+        #if($html.clearable) clearable #end
+        #if($html.format) format="${html.format}" #end
+        #if($html.interfaceId) interfaceId="${html.interfaceId}" #end
+        #if($html.templateJson) :templateJson="interfaceRes.${model}" #end
+        #if($html.relationField) relationField="${html.relationField}" #end
+        #if($selectTypes) selectType="${selectTypes}" #end
+        #if($html.searchMultiple) :multiple=#if($jnpfkey=='currOrganize' || $jnpfkey=='currPosition') "true" #else "${html.searchMultiple}" #end#end
+        #if($html.ableIds) :ableIds="ableAll.${model}ableIds" #end
+        #if(${html.level}) :level="${html.level}" #end
+        #if(${modelprops}) :props="${modelprops}" #end
+        #if(${modeloptions}) :options="${modeloptions}" #end/>
+</u-form-item>
+    #end
+#end
+##  列表搜索
+#macro(AppSearchRendering)
+    #foreach($searchAll in ${context.searchAll})
+        #set($html = ${searchAll.html})
+        #codeIndex($html)
+    #end
+#end
+##  列表
+#macro(codeOptionsList $fieLdsModel $tabList)
+    #set($html = $fieLdsModel)
+    #set($vModel = "${html.vModel}")
+    #set($config = $html.config)
+    #set($dataType = "${config.dataType}")
+    #if(${dataType}=='dictionary')
+    get${vModel}Options() {
+        getDictionaryDataSelector('${config.dictionaryType}').then(res => {
+            this.${vModel}Options = res.data.list
+        })
+    },
+    #elseif(${dataType}=='dynamic')
+    get${vModel}Options() {
+        let templateJsonList = JSON.parse(JSON.stringify(this.interfaceRes.${vModel}))
+        let template = {
+            paramList: templateJsonList
+        }
+        getDataInterfaceRes('${config.propsUrl}',template).then(res => {
+            let data = res.data
+            this.${vModel}Options = data
+        })
+    },
+    #end
+#end

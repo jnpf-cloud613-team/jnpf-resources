@@ -1,0 +1,85 @@
+
+#set($className = "${context.className}")
+#set($Name = "${className.substring(0,1).toUpperCase()}${className.substring(1)}")
+#set($name = "${className.substring(0,1).toLowerCase()}${className.substring(1)}")
+##  获取列表信息
+#macro(GetList)
+    /**
+     * 列表
+     *
+     * @param ${name}Pagination
+     * @return
+     */
+    @Operation(summary = "获取列表")
+    @PostMapping("/getList")
+    public ActionResult list(@RequestBody ${Name}Pagination ${name}Pagination) {
+        PageListVO interfaceData = generaterSwapUtil.getInterfaceData(${name}Pagination, paramConst,#if(${context.hasPage}) true #else false#end,"$!{context.viewKey}");
+        return ActionResult.success(interfaceData);
+    }
+#end
+##  导出
+#macro(ExportMethod)
+    /**
+    * 导出Excel
+    *
+    * @return
+    */
+    @Operation(summary = "导出Excel")
+    @PostMapping("/Actions/Export")
+    public ActionResult Export(@RequestBody ${Name}Pagination ${name}Pagination) {
+        if (StringUtil.isEmpty(${name}Pagination.getSelectKey())){
+            return ActionResult.fail("请选择导出字段");
+        }
+        DownloadVO vo = generaterSwapUtil.exportInterfaceData(${name}Pagination, paramConst,#if(${context.hasPage}) true #else false#end,"$!{context.viewKey}");
+        return ActionResult.success(vo);
+    }
+#end
+package ${context.package}.controller;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jnpf.base.ActionResult;
+import jnpf.base.vo.DownloadVO;
+import jnpf.base.vo.PageListVO;
+import jnpf.model.$!{name.toLowerCase()}.$!{Name}Constant;
+import jnpf.model.$!{name.toLowerCase()}.$!{Name}Pagination;
+import jnpf.util.GeneraterSwapUtil;
+import jnpf.util.ServletUtil;
+import jnpf.util.StringUtil;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * ${context.genInfo.description}
+ * @版本： ${context.genInfo.version}
+ * @版权： ${context.genInfo.copyright}
+ * @作者： ${context.genInfo.createUser}
+ * @日期： ${context.genInfo.createDate}
+ */
+@Slf4j
+@RestController
+@Tag(name = "${context.genInfo.description}" , description = "${context.module}")
+#if(${context.isCloud}=="cloud")
+@RequestMapping("/${Name}")
+#else
+@RequestMapping("/api/${context.module}/${className}")
+#end
+public class ${className}Controller {
+
+    private ${className}Constant paramConst = ${className}Constant.get();
+
+    @Autowired
+    private GeneraterSwapUtil generaterSwapUtil;
+
+##  获取列表信息
+#GetList()
+##  导出数据
+#if(${context.hasDownloadBtn})
+#ExportMethod()
+#end
+
+}

@@ -1,0 +1,33 @@
+#macro(CreateExcelFields $html,$index)
+    #set($vModel = ${html.vModel})
+    #set($config = ${html.config})
+    #set($jnpfkey = "${config.jnpfKey}")
+    /** ${config.label} **/
+    @JSONField(name = "${vModel}")
+    @Excel(name = "${config.label}(${vModel})",orderNum = "1", isImportField = "true" )
+    #if(${jnpfkey}=='inputNumber' || ${jnpfkey}=='calculate' )
+        #if($!{fieLdsModel.formColumnModel.fieLdsModel.precision})
+    private String ${vModel};
+
+        #else
+    private String ${vModel};
+
+        #end
+    #elseif(${jnpfkey}=='slider'|| ${jnpfkey}=='rate')
+    private String ${vModel};
+
+    #elseif(${jnpfkey}=='modifyTime' || ${jnpfkey}=='createTime')
+    private String ${vModel};
+
+    #elseif(${jnpfkey}=='datePicker')
+        #set($pattern = "yyyy-MM-dd")
+        #if(${html.format})
+            #set($pattern = "${html.format}")
+        #end
+    private String ${vModel};
+
+    #else
+    private String ${vModel};
+
+    #end
+#end

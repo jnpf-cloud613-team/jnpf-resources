@@ -1,0 +1,83 @@
+#parse("PublicMacro/ConstantMarco.vm")
+#ConstantParams()
+#set($moduleName = "${context.genInfo.className.toLowerCase()}")
+#if($context.isForm)
+    #set($package = "package ${context.package}.${context.isForm}.model.${moduleName};")
+#else
+    #set($package = "package ${context.package}.model.${moduleName};")
+#end
+${package}
+
+import lombok.Data;
+import java.util.List;
+import java.util.Date;
+import java.math.BigDecimal;
+import com.alibaba.fastjson.annotation.JSONField;
+import cn.afterturn.easypoi.excel.annotation.Excel;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
+
+/**
+ *
+ * ${context.genInfo.description}
+ * 版本： ${context.genInfo.version}
+ * 版权: ${context.genInfo.copyright}
+ * 作者： ${context.genInfo.createUser}
+ * 日期： ${context.genInfo.createDate}
+ */
+@Data
+@Schema(description = "${context.className}子表参数")
+public class ${context.className}Model  {
+
+#if($!{context.thisKeyFields})
+    #set($keyField =${context.thisKeyFields.field})
+    /** 子表：${context.className} 主键：${keyField} **/
+    @Schema(description = "主键")
+    @JsonProperty("${keyField}")
+    #if(${context.thisKeyFields.dataType} =="int")
+    private Integer ${keyField};
+    #elseif(${context.thisKeyFields.dataType} == "bigint")
+    private Long ${keyField};
+    #else
+    private String ${keyField};
+    #end
+#end
+#foreach($html in ${context.children.childList})
+    #set($fieLdsModel = ${html.fieLdsModel})
+    #set($config = ${fieLdsModel.config})
+    #set($jnpfkey = ${config.jnpfKey})
+    #set($vModel = "${fieLdsModel.vModel}")
+    #set($fieldName=${config.label})
+    #set($fieldAlias="${fieLdsModel.fieldAlias}")
+    #if($vModel)
+        #if(${jnpfkey}=='datePicker')
+            #set($resultType="Long")
+        #elseif(${jnpfkey}=='inputNumber' || ${jnpfkey}=='calculate')
+            #if(${fieLdsModel.precision}==0)
+                #set($resultType="Integer")
+            #else
+                #set($resultType="BigDecimal")
+            #end
+        #elseif(${jnpfkey}=='slider'|| ${jnpfkey}=='rate')
+            #set($resultType="BigDecimal")
+        #elseif(${jnpfkey}=='relationFormAttr'|| ${jnpfkey}=='popupAttr' ||${jnpfkey}=='relationForm' )
+            #set($resultType="String")
+        #elseif(${multipleUnit.contains($jnpfkey)} || ${UploadFileUnit.contains(${jnpfkey})})
+            #set($resultType="Object")
+        #else
+            #set($resultType="String")
+        #end
+    /** ${fieldName} **/
+    @Schema(description = "${fieldName}")
+    #if($fieLdsModel.needImport)
+    @Excel(name = "${fieldName}",orderNum = "1",isImportField = "true")
+    #end
+    @JsonProperty("${vModel}")
+    @JSONField(name = "${vModel}")
+    private ${resultType} ${fieldAlias};
+    #if(${jnpfkey}=='relationForm')
+    private String ${vModel}_id;
+    #end
+    #end
+#end
+}

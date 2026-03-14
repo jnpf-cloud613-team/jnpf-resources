@@ -1,0 +1,79 @@
+#set($name = "${context.className.substring(0,1).toUpperCase()}${context.className.substring(1)}")
+package ${context.package}.model.$!{name.toLowerCase()};
+
+import com.alibaba.fastjson.annotation.JSONField;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
+import jnpf.base.Pagination;
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
+
+/**
+ *
+ * ${context.genInfo.description}
+ * @版本： ${context.genInfo.version}
+ * @版权： ${context.genInfo.copyright}
+ * @作者： ${context.genInfo.createUser}
+ * @日期： ${context.genInfo.createDate}
+ */
+@Data
+@Schema(description = "列表查询参数")
+public class $!{name}Pagination extends Pagination {
+    #if($!{context.isFlow})
+    /** 流程模板id */
+    @Schema(description = "流程模板id")
+    private String flowId;
+    @Schema(description = "流程状态")
+    private Integer jnpfFlowState;
+    #end
+    /** 关键词搜索 */
+    @Schema(description = "关键词搜索")
+    private String jnpfKeyword;
+    /** 查询key */
+    @Schema(description = "查询key")
+	private String[] selectKey;
+    /** 选中数据数组id */
+    @Schema(description = "选中数据数组id")
+    private Object[] selectIds;
+    /** json */
+    @Schema(description = "json")
+	private String json;
+    /** 数据类型 0-当前页，1-全部数据 */
+    @Schema(description = "数据类型 0-当前页，1-全部数据")
+	private String dataType;
+    /** 高级查询 */
+    @Schema(description = "高级查询")
+	private String superQueryJson;
+    /** 功能id */
+    @Schema(description = "功能id")
+    private String moduleId;
+    /** 菜单id */
+    @Schema(description = "菜单id")
+    private String menuId;
+#foreach($search in ${context.searchListAll})
+    #set($jsonKey =${search.id})
+    #set($label = ${search.label})
+    #set($fieldAliasName = "${search.afterVModel}")
+    #set($tableAliasName = "${search.tableAliasName}")
+    #if($jsonKey.contains("_jnpf_"))
+        #set($fieldAliasName = "jnpf_${tableAliasName}_jnpf_${fieldAliasName}")
+    #elseif($jsonKey.toLowerCase().startsWith("tablefield"))
+        #set($fieldAliasName = "${search.tableAliasName}_${fieldAliasName}")
+    #end
+    /** ${label} */
+    @Schema(description = "${label}")
+    @JsonProperty("$jsonKey")
+    @JSONField(name = "${fieldAliasName}")
+    private Object ${fieldAliasName};
+#end
+#if(${context.treeTable} == true)
+    /**
+    * 树形异步父级字段传值
+    */
+    private String treeParentValue;
+    /**
+    * 是否有参数
+    */
+    private  boolean hasParam=false;
+#end
+}

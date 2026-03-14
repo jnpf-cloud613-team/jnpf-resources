@@ -1,0 +1,428 @@
+#parse("PublicMacro/FormMarco.vm")
+#foreach($fieLdsModel in ${context.form})
+    #set($jnpfKey = "${fieLdsModel.jnpfKey}")
+    #if($jnpfKey == 'table')
+        #set($child = $fieLdsModel.childList)
+        #if($child.showSummary)
+            #set($childSummary=true)
+        #end
+        #if($child.footerBtnsList.size()>2)
+            #set($isSelectDialog = true)
+        #end
+        #if($child.isNumLimit)
+            #set($isNumLimitSwitch = true)
+        #end
+    #end
+#end
+<script lang="ts" setup>
+  import { create, update, getInfo } from './helper/api';
+  import { reactive, toRefs, nextTick, ref, unref, computed,toRaw, inject } from 'vue';
+  #if(${context.popupType}=="fullScreen")
+  import { BasicPopup, usePopup } from '@jnpf/ui/popup';
+  #end
+  #if(${context.popupType}=="general")
+  import { BasicModal, useModal } from '@jnpf/ui/modal';
+  #end
+  #if(${context.popupType}=="drawer")
+  import { BasicDrawer, useDrawer } from '@jnpf/ui/drawer';
+  #end
+  import { useMessage ,usePermission} from '@jnpf/hooks';
+  import { $t } from '#/locales';
+  import { useUserStore } from '@vben/stores';
+  import type { FormInstance } from 'ant-design-vue';
+  #if($isSelectDialog == true)
+  import SelectModal from '#/components/Jnpf/InputTable/src/components/SelectModal.vue';
+  #end
+  import { thousandsFormat , getDateTimeUnit, getTimeUnit,buildUUID} from '@jnpf/utils';
+  import { getDictionaryDataSelector } from '#/api/systemData/dictionary';
+  import { getDataInterfaceRes } from '#/api/systemData/dataInterface';
+  import dayjs from 'dayjs';
+  // 表单权限
+  import { cloneDeep } from 'lodash-es';
+  import { CaretRightOutlined } from '@ant-design/icons-vue';
+
+
+  interface State {
+      #createStateParam("any")
+    title: string;
+          #if(${context.hasConfirmAndAddBtn})continueText: string; #end
+    allList: any[];
+    currIndex: number;
+    isContinue: boolean;
+    submitType: number;
+    showContinueBtn: boolean;
+  }
+
+  const emit = defineEmits(['reload']);
+  const getLeftTreeActiveInfo: (() => any) | null = inject('getLeftTreeActiveInfo', null);
+  const userStore = useUserStore();
+  const userInfo:any = userStore.getUserInfo;
+  const { createMessage, createConfirm } = useMessage();
+      #if(${context.popupType}=="fullScreen")
+      const [registerPopup, { openPopup, setPopupProps }] = usePopup();
+      #end
+      #if(${context.popupType}=="general")
+      const [registerModal, { openModal, setModalProps }] = useModal();
+      #end
+      #if(${context.popupType}=="drawer")
+      const [registerDrawer, { openDrawer, setDrawerProps }] = useDrawer();
+      #end
+  const formRef = ref<FormInstance>();
+      #if($isSelectDialog == true)
+      // 子表弹窗数据
+      const selectModal = ref(null);
+      #end
+      #GetChildTableColumns()
+  const state = reactive<State>({
+      #createStateParam()
+    title: "",
+      #if(${context.hasConfirmAndAddBtn}) continueText: "", #end
+    allList: [],
+    currIndex: 0,
+    isContinue: false,
+    submitType: 0,
+  showContinueBtn: #if(${context.hasConfirmAndAddBtn}) true #else false #end,
+  });
+  const { title, #if(${context.hasConfirmAndAddBtn}) continueText, #end showContinueBtn, dataRule, dataForm, optionsObj, ableAll, maskConfig,submitType } = toRefs(state);
+
+  const getPrevDisabled = computed(() => state.currIndex === 0);
+  const getNextDisabled = computed(() => state.currIndex === state.allList.length - 1);
+  // 表单权限
+  const { hasFormP } = usePermission();
+
+  defineExpose({ init });
+
+  function init(data) {
+    state.submitType = 0;
+    state.isContinue = false;
+    state.title = !data.id ? $t('common.add2Text','新增') : $t('common.editText','编辑');
+      #if(${context.hasConfirmAndAddBtn}) state.continueText = !data.id ? $t('common.continueAndAddText','确定并新增') : $t('common.continueText','确定并继续'); #end
+    setFormProps({ continueLoading: false });
+    state.dataForm.id = data.id;
+      #if(${context.popupType}=="fullScreen")
+        openPopup();
+      #end
+      #if(${context.popupType}=="general")
+        openModal();
+      #end
+      #if(${context.popupType}=="drawer")
+        openDrawer();
+      #end
+    state.allList = data.allList;
+    state.currIndex = state.allList.length && data.id ? state.allList.findIndex((item) => item.id === data.id) : 0;
+    nextTick(() => {
+      getForm().resetFields();
+        #foreach($child in ${context.children})
+          state.dataForm.${child.aliasLowName}List = [];
+        #end
+      setTimeout(initData, 0);
+    });
+  }
+  function initData() {
+    changeLoading(true);
+      #InitActiveValue()
+    if (state.dataForm.id) {
+      getData(state.dataForm.id);
+    } else {
+      //初始化options
+        #EditGetOption(false)
+      // 设置默认值
+      state.dataForm={
+          #CreateDataform()
+      };
+      if (getLeftTreeActiveInfo) state.dataForm = {...state.dataForm, ...(getLeftTreeActiveInfo() || {}) };
+      state.childIndex = -1;
+      changeLoading(false);
+    }
+  }
+  function getForm() {
+    const form = unref(formRef);
+    if (!form) {
+      throw new Error('form is null!');
+    }
+    return form;
+  }
+  function getData(id) {
+    getInfo(id).then((res) => {
+      state.dataForm = res.data || {};
+        ##          初始化options
+        #EditGetOption(true)
+      state.childIndex = -1;
+      changeLoading(false);
+    });
+  }
+  async function handleSubmit(type) {
+    try {
+      const values = await getForm()?.validate();
+      if (!values) return;
+        ### 非流程子表字段验证
+        #if(!$context.isFlow)
+            #foreach($itemModel in ${context.children})
+              if(!$!{itemModel.aliasLowName}Exist()) return;
+            #end
+        #end
+
+
+      setFormProps({ confirmLoading: true });
+      const formMethod = state.dataForm.id ? update : create;
+      formMethod(state.dataForm)
+          .then((res) => {
+            createMessage.success(res.msg);
+            setFormProps({ confirmLoading: false });
+            if (state.submitType == 1) {
+              initData();
+              state.isContinue = true;
+            } else {
+              setFormProps({ open: false });
+              emit('reload');
+            }
+          })
+          .catch(() => {
+            setFormProps({ confirmLoading: false });
+          });
+    } catch (_) {}
+  }
+  function handlePrev() {
+    state.currIndex--;
+    handleGetNewInfo();
+  }
+  function handleNext() {
+    state.currIndex++;
+    handleGetNewInfo();
+  }
+  function handleGetNewInfo() {
+    changeLoading(true);
+    getForm().resetFields();
+    const id = state.allList[state.currIndex].id;
+    getData(id);
+  }
+  function setFormProps(data) {
+      #if(${context.popupType}=="fullScreen")
+        setPopupProps(data);
+      #end
+      #if(${context.popupType}=="general")
+        setModalProps(data);
+      #end
+      #if(${context.popupType}=="drawer")
+        setDrawerProps(data);
+      #end
+  }
+  function changeLoading(loading) {
+      #if(${context.popupType}=="fullScreen")
+        setPopupProps({ loading });
+      #end
+      #if(${context.popupType}=="general")
+        setModalProps({ loading });
+      #end
+      #if(${context.popupType}=="drawer")
+        setDrawerProps({ loading });
+      #end
+  }
+  async function onClose() {
+    if (state.isContinue) emit('reload');
+    return true;
+  }
+
+      ##合计方法
+      #if($childSummary==true)
+      //子表合计方法
+      function getCmpValOfRow(row, key, summaryField) {
+        if (!summaryField.length) return '';
+        const isSummary = key => summaryField.includes(key);
+        const target = row[key];
+        if (!target) return '';
+        let data = isNaN(target) ? 0 : Number(target);
+        if (isSummary(key)) return data || 0;
+        return '';
+      }
+      #end
+      ##数据联动changeData方法
+      #ChangeData()
+      ##子表其他方法
+      #CreateChildTableMethod()
+      ##子表弹窗数据方法
+      #if($isSelectDialog == true)
+          #ChildDialogMethod()
+      #end
+      ##数据选项--数据字典和远端数据初始化方法
+      #GetDataOptionsMethod()
+      ##动态时间处理
+      #GetRelationDate()
+</script>
+
+<template>
+##    全屏弹窗
+#if(${context.popupType}=="fullScreen")
+##<!-- 全屏弹窗 -->
+    <BasicPopup v-bind="$attrs" @register="registerPopup" showOkBtn destroyOnClose
+                    #if(${context.cancelButtonText} || ${context.cancelButtonTextI18nCode})
+                    #if(${context.cancelButtonTextI18nCode}):cancelText="$t('${context.cancelButtonTextI18nCode}','${context.cancelButtonText}')"
+                    #else cancelText="${context.CancelButton}"#end
+                    #end
+                    #if(${context.confirmButtonText} || ${context.confirmButtonTextI18nCode})
+                    #if(${context.confirmButtonTextI18nCode}):okText="$t('${context.confirmButtonTextI18nCode}','${context.confirmButtonText}')"
+                    #else okText="${context.confirmButtonText}"#end
+                    #end
+                    @ok="handleSubmit" :closeFunc="onClose">
+      <template #title>
+        <a-space :size="10">
+          <div class="text-16px font-medium">{{ title }}</div>
+##      <!-- 分组和树形不展示 -->
+            #if(${context.hasConfirmAndAddBtn} && (!${context.groupTable} && !${context.treeTable}))
+            <a-space-compact size="small" block  v-if="dataForm.id">
+                <a-tooltip :title="$t('common.prevRecord')">
+                  <a-button size="small" :disabled="getPrevDisabled" @click="handlePrev">
+                    <i class="icon-ym icon-ym-caret-left text-10px"></i>
+                  </a-button>
+                </a-tooltip>
+                <a-tooltip :title="$t('common.nextRecord')">
+                  <a-button size="small" :disabled="getNextDisabled" @click="handleNext">
+                    <i class="icon-ym icon-ym-caret-right text-10px"></i>
+                  </a-button>
+                </a-tooltip>
+            </a-space-compact>
+            #end
+        </a-space>
+      </template>
+    #if(${context.hasConfirmAndAddBtn} && (!${context.groupTable} && !${context.treeTable}))
+##        <!-- 分组和树形不展示 -->
+        <template #insertToolbar>
+          <JnpfCheckboxSingle v-model:value="submitType" :label="continueText" v-if="showContinueBtn" />
+        </template>
+##        <!-- 分组和树形不展示 -->
+    #end
+        <a-row class="p-[10px] dynamic-form ${context.formStyle}" :style="{ margin: '0 auto', width: '${context.fullScreenWidth}' }">
+            <a-form :colon="false" size="${context.size}" layout=#if(${context.labelPosition}=="top") "vertical" #else "horizontal" #end
+                labelAlign=#if(${context.labelPosition}=="right") "right" #else "left" #end
+                #if(${context.labelPosition}!="top") :labelCol="{ style: { width: '${context.labelWidth}px' } }" #end
+                :model="dataForm" :rules="dataRule" ref="formRef" >
+                <a-row :gutter="#if(${context.formStyle}=='word-form')0#else${context.gutter}#end">
+                    <!-- 具体表单 -->
+                    #FormRendering()
+                    <!-- 表单结束 -->
+                </a-row>
+            </a-form>
+        </a-row>
+    </BasicPopup>
+##<!-- 全屏弹窗 -->
+#end
+##    普通弹窗
+#if(${context.popupType}=="general")
+##<!-- 普通弹窗 -->
+    <BasicModal v-bind="$attrs" @register="registerModal"  width="${context.generalWidth}"
+                    :minHeight="100"
+                    #if(${context.cancelButtonText} || ${context.cancelButtonTextI18nCode})
+                    #if(${context.cancelButtonTextI18nCode}):cancelText="$t('${context.cancelButtonTextI18nCode}','${context.cancelButtonText}')"
+                    #else cancelText="${context.CancelButton}"#end
+                    #end
+                    #if(${context.confirmButtonText} || ${context.confirmButtonTextI18nCode})
+                    #if(${context.confirmButtonTextI18nCode}):okText="$t('${context.confirmButtonTextI18nCode}','${context.confirmButtonText}')"
+                    #else okText="${context.confirmButtonText}"#end
+                    #end
+                    @ok="handleSubmit" :closeFunc="onClose">
+      <template #title>
+        <a-space :size="10">
+          <div class="text-16px font-medium">{{ title }}</div>
+##      <!-- 分组和树形不展示 -->
+            #if(${context.hasConfirmAndAddBtn} && (!${context.groupTable} && !${context.treeTable}))
+              <a-space-compact size="small" block  v-if="dataForm.id">
+                <a-tooltip :title="$t('common.prevRecord')">
+                  <a-button size="small" :disabled="getPrevDisabled" @click="handlePrev">
+                    <i class="icon-ym icon-ym-caret-left text-10px"></i>
+                  </a-button>
+                </a-tooltip>
+                <a-tooltip :title="$t('common.nextRecord')">
+                  <a-button size="small" :disabled="getNextDisabled" @click="handleNext">
+                    <i class="icon-ym icon-ym-caret-right text-10px"></i>
+                  </a-button>
+                </a-tooltip>
+              </a-space-compact>
+            #end
+        </a-space>
+      </template>
+    #if(${context.hasConfirmAndAddBtn} && (!${context.groupTable} && !${context.treeTable}))
+##        <!-- 分组和树形不展示 -->
+        <template #insertFooter>
+          <div class="float-left mt-5px">
+            <JnpfCheckboxSingle v-model:value="submitType" :label="continueText" />
+          </div>
+        </template>
+##        <!-- 分组和树形不展示 -->
+    #end
+        <a-row class="dynamic-form ${context.formStyle}">
+            <a-form :colon="false" size="${context.size}" layout=#if(${context.labelPosition}=="top") "vertical" #else "horizontal" #end
+            labelAlign=#if(${context.labelPosition}=="right") "right" #else "left" #end
+            #if(${context.labelPosition}!="top") :labelCol="{ style: { width: '${context.labelWidth}px' } }" #end
+            :model="dataForm" :rules="dataRule" ref="formRef">
+            <a-row :gutter="#if(${context.formStyle}=='word-form')0#else${context.gutter}#end">
+                <!-- 具体表单 -->
+                #FormRendering()
+                <!-- 表单结束 -->
+            </a-row>
+            </a-form>
+        </a-row>
+    </BasicModal>
+##<!-- 普通弹窗 -->
+#end
+##    右侧弹窗
+#if(${context.popupType}=="drawer")
+##<!-- 右侧弹窗 -->
+    <BasicDrawer v-bind="$attrs" @register="registerDrawer" width="${context.drawerWidth}" showFooter
+                    #if(${context.cancelButtonText} || ${context.cancelButtonTextI18nCode})
+                    #if(${context.cancelButtonTextI18nCode}):cancelText="$t('${context.cancelButtonTextI18nCode}','${context.cancelButtonText}')"
+                    #else cancelText="${context.CancelButton}"#end
+                    #end
+                    #if(${context.confirmButtonText} || ${context.confirmButtonTextI18nCode})
+                    #if(${context.confirmButtonTextI18nCode}):okText="$t('${context.confirmButtonTextI18nCode}','${context.confirmButtonText}')"
+                    #else okText="${context.confirmButtonText}"#end
+                    #end
+                    @ok="handleSubmit" :closeFunc="onClose">
+      <template #title>
+        <a-space :size="10">
+          <div class="text-16px font-medium">{{ title }}</div>
+##      <!-- 分组和树形不展示 -->
+            #if(${context.hasConfirmAndAddBtn} && (!${context.groupTable} && !${context.treeTable}))
+              <a-space-compact size="small" block  v-if="dataForm.id">
+                <a-tooltip :title="$t('common.prevRecord')">
+                  <a-button size="small" :disabled="getPrevDisabled" @click="handlePrev">
+                    <i class="icon-ym icon-ym-caret-left text-10px"></i>
+                  </a-button>
+                </a-tooltip>
+                <a-tooltip :title="$t('common.nextRecord')">
+                  <a-button size="small" :disabled="getNextDisabled" @click="handleNext">
+                    <i class="icon-ym icon-ym-caret-right text-10px"></i>
+                  </a-button>
+                </a-tooltip>
+              </a-space-compact>
+            #end
+        </a-space>
+      </template>
+    #if(${context.hasConfirmAndAddBtn} && (!${context.groupTable} && !${context.treeTable}))
+##        <!-- 分组和树形不展示 -->
+        <template #insertFooter>
+          <div class="float-left mt-5px">
+            <JnpfCheckboxSingle v-model:value="submitType" :label="continueText" />
+          </div>
+        </template>
+##        <!-- 分组和树形不展示 -->
+    #end
+        <a-row class="p-[10px] dynamic-form ${context.formStyle}">
+            <!-- 表单 -->
+            <a-form :colon="false" size="${context.size}" layout=#if(${context.labelPosition}=="top") "vertical" #else "horizontal" #end
+                labelAlign=#if(${context.labelPosition}=="right") "right" #else "left" #end
+                #if(${context.labelPosition}!="top") :labelCol="{ style: { width: '${context.labelWidth}px' } }" #end
+                :model="dataForm" :rules="dataRule" ref="formRef" >
+                <a-row :gutter="#if(${context.formStyle}=='word-form')0#else${context.gutter}#end">
+                    <!-- 具体表单 -->
+                    #FormRendering()
+                    <!-- 表单结束 -->
+                </a-row>
+            </a-form>
+        </a-row>
+    </BasicDrawer>
+##<!-- 右侧弹窗 -->
+#end
+#if($isSelectDialog == true)
+    <SelectModal :config="state.currTableConf" :formData="state.dataForm" ref="selectModal" @select="addForSelect"/>
+#end
+</template>

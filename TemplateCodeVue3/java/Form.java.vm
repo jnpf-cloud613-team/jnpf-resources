@@ -1,0 +1,98 @@
+##通用参数
+#parse("PublicMacro/ConstantMarco.vm")
+#ConstantParams()
+#set($modelPath = "model."+${context.modelPathName})
+#set($pKeyName =${context.pKeyName})
+#set($pKeyNameOriginal =${context.pKeyNameOriginal})
+#set($peimaryKeyname = "${pKeyName.substring(0,1).toLowerCase()}${pKeyName.substring(1)}")
+package ${context.package}.${modelPath};
+
+import lombok.Data;
+import java.util.*;
+import java.math.BigDecimal;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.alibaba.fastjson.annotation.JSONField;
+import io.swagger.v3.oas.annotations.media.Schema;
+
+/**
+ * ${context.genInfo.description}
+ * @版本： ${context.genInfo.version}
+ * @版权： ${context.genInfo.copyright}
+ * @作者： ${context.genInfo.createUser}
+ * @日期： ${context.genInfo.createDate}
+ */
+@Data
+@Schema(description = "表单参数")
+public class $!{context.className}Form  {
+    /** 主键 */
+    @Schema(description = "主键")
+    @JSONField(name = "${pKeyNameOriginal}")
+    private String $!{peimaryKeyname};
+
+#if(${context.version})
+    /** 乐观锁 **/
+    @Schema(description = "乐观锁")
+    @JsonProperty("f_version")
+    @JSONField(name = "f_version")
+    private Integer version;
+#end
+#if(${context.isFlow})
+    /** 流程id **/
+    @Schema(description = "流程id")
+    @JsonProperty("flowId")
+    @JSONField(name = "f_flow_id")
+    private String flowId;
+    /** 流程权限列表 **/
+    @JsonProperty("formOperates")
+    private List<Map<String,Object>> formOperates = new ArrayList<>();
+#end
+
+##  主副表字段
+#foreach($item in ${context.form})
+#if($item.jnpfKey=='mast' || $item.jnpfKey=='mastTable')
+    #set($html = $item.formColumnModel.fieLdsModel)
+    #set($vModel = "${html.vModel}")
+    #set($fieldAlias = "${html.fieldAlias}")
+    #if($item.jnpfKey=='mastTable')
+        #set($html = $item.formMastTableModel.mastTable.fieLdsModel)
+        #set($vModel = "${item.formMastTableModel.vModel}")
+        #set($fieldAlias = "jnpf_"+"${html.tableAlias}"+"_jnpf_"+ "${html.fieldAlias}")
+    #end
+    #set($resultType = "String")
+    #if($vModel!='')
+        #set($config = $html.config)
+        #set($jnpfkey = "${config.jnpfKey}")
+        #set($fieldName=${config.label})
+        #if(${jnpfkey}!='text' && ${jnpfkey}!='divider')
+            #if(${jnpfkey}=='inputNumber' || ${jnpfkey}=='calculate')
+                #if(${fieLdsModel.formColumnModel.fieLdsModel.precision}==0)
+                    #set($resultType = "Integer")
+                #else
+                    #set($resultType = "BigDecimal")
+                #end
+            #elseif(${jnpfkey}=='slider' || ${jnpfkey} == 'rate')
+                #set($resultType = "BigDecimal")
+            #elseif(${jnpfkey} == 'switch')
+                #set($resultType = "Integer")
+            #elseif(${multipleUnit.contains(${jnpfkey})} || ${UploadFileUnit.contains(${jnpfkey})})
+                #set($resultType = "Object")
+            #else
+                #set($resultType = "String")
+            #end
+    /** ${fieldName} **/
+    @Schema(description = "${fieldName}")
+    @JsonProperty("${vModel}")
+    @JSONField(name = "${vModel}")
+    private ${resultType} ${fieldAlias};
+        #end
+    #end
+#end
+#end
+
+#foreach($html in ${context.children})
+    /** 子表数据 **/
+    @Schema(description = "${html.aliasLowName}子表数据")
+    @JsonProperty("${html.aliasLowName}List")
+    private List<${html.aliasUpName}Model> ${html.aliasLowName}List;
+#end
+}

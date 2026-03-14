@@ -1,0 +1,443 @@
+#parse("PublicMacro/AppFormMarco.vm")
+<template>
+    <view class="jnpf-wrap jnpf-wrap-form dynamicModel-form-v" v-if="!loading">
+        <u-form :model="${context.formModel}" :rules="${context.formRules}" ref="${context.formModel}" :errorType="['toast']"
+				#set($position='left')
+				#if(${context.labelPosition}=='top')
+					#set($position='top')
+				#end
+				#set($align='left')
+				#if(${context.labelPosition}=='right')
+					#set($align='right')
+				#end
+                label-position="${position}" label-align="${align}" :label-width="labelwidth" class="jnpf-form">
+            #AppDetailRendering()
+        </u-form>
+        <view class="buttom-actions" >
+			<template v-if="btnList.includes('btn_edit')">
+				<CustomButton class="u-flex buttom-btn-left-inner" :btnText="$t('common.cancelText')" btnIcon="icon-ym icon-ym-add-cancel" customIcon />
+				<u-button class="buttom-btn" type="primary" @click.stop="submitForm">{{$t('common.editText','编辑')}}</u-button>
+			</template>
+            <u-button v-else class="buttom-btn" @click="resetForm">{{$t('common.cancelText','取消')}}</u-button>
+        </view>
+		<u-modal v-model="show" :content="content" width='70%' border-radius="16" :content-style="{fontSize: '28rpx',padding: '20rpx',lineHeight: '44rpx',textAlign: 'left'}"
+		 :titleStyle="{padding: '20rpx'}" :confirm-style="{height: '80rpx',lineHeight: '80rpx'}" :title="title" confirm-text="确定">
+		</u-modal>
+    </view>
+</template>
+<script>
+    import {
+        getDictionaryDataSelector,
+		getDataInterfaceRes
+    } from '@/api/common'
+  	import {
+		getRelationFormDetail,
+		getDataInterfaceDataInfoByIds
+	} from '@/api/common.js'
+    import request from '@/utils/request'
+    import DisplayList from '@/components/displayList'
+	import CustomButton from '@/components/CustomButton'
+
+    export default {
+    	components:{
+			DisplayList,
+			CustomButton
+		},
+        data(){
+            return{
+                btnLoading: false,
+				loading: false,
+                text: '提示：测试文本',
+                tableKey:'',
+                timeKey : +new Date(),
+				${context.formModel}:{
+					${pKeyName}:"",
+				},
+				${context.formRules}:{},
+				#foreach($fieLdsModel in ${context.form})
+					#set($jnpfkey = "${fieLdsModel.jnpfKey}")
+					#set($isEnd = "${fieLdsModel.isEnd}")
+					#set($formModel = ${fieLdsModel.formModel})
+					#set($model = "${formModel.model}")
+					#set($outermost = ${formModel.outermost})
+					#set($children = ${formModel.children})
+					#if(${layoutList.contains($jnpfkey)})
+						#if(${isEnd}=='0')
+							#if(${outermost}=='0')
+								#if($jnpfkey=='collapse')
+				${model}active: #if($formModel.accordion) '${formModel.active}' #else ${formModel.active}  #end,
+								#end
+				${model}Current:${formModel.activeIndex},
+				${model}Data:[
+								#foreach($childrenList in $children)
+					{
+						title: #if(${childrenList.titleI18nCode}) this.$t('${childrenList.titleI18nCode}')#else "${childrenList.title}" #end
+					},
+								#end
+				],
+							#end
+						#end
+					#end
+				#end
+				interfaceRes:{
+					#foreach($html in ${context.fields})
+						#set($fieLdsModel = $html.formColumnModel.fieLdsModel)
+					#faceRes($fieLdsModel,'')
+					#end
+					#foreach($masetkey in $mastTableList.entrySet())
+						#set($fieldsAll = $masetkey.value)
+						#foreach($html in ${fieldsAll})
+							#set($fieLdsModel = $html.formMastTableModel.mastTable.fieLdsModel)
+					#faceRes($fieLdsModel,'')
+						#end
+					#end
+					#foreach($child in ${context.children})
+						#set($className = "${child.className}")
+						#foreach($childList in ${child.childList})
+							#set($fieLdsModel = $childList.fieLdsModel)
+					#faceRes($fieLdsModel,$className)
+						#end
+					#end
+				},
+				extraOptions:{
+					#foreach($html in ${context.fields})
+						#set($fieLdsModel = $html.formColumnModel.fieLdsModel)
+						#extraOptions($fieLdsModel,'')
+					#end
+					#foreach($masetkey in $mastTableList.entrySet())
+						#set($fieldsAll = $masetkey.value)
+						#foreach($html in ${fieldsAll})
+							#set($fieLdsModel = $html.formMastTableModel.mastTable.fieLdsModel)
+							#extraOptions($fieLdsModel,'')
+						#end
+					#end
+					#foreach($child in ${context.children})
+						#set($className = "${child.className}")
+						#foreach($childList in ${child.childList})
+							#set($fieLdsModel = $childList.fieLdsModel)
+							#extraOptions($fieLdsModel,$className)
+						#end
+					#end
+				},
+				extraData:{
+					#foreach($fieLdsModel in ${context.fields})
+						#set($html = $fieLdsModel.formColumnModel.fieLdsModel)
+						#set($vModel = "${html.vModel}")
+						#if($vModel)
+					$!{vModel} : {},
+						#end
+					#end
+					#foreach($masetkey in $mastTableList.entrySet())
+						#set($fieldsAll = $masetkey.value)
+						#foreach($fieLdsModel in ${fieldsAll})
+							#set($mastTableModel = $fieLdsModel.formMastTableModel)
+							#set($html = $fieLdsModel.formMastTableModel.mastTable.fieLdsModel)
+							#set($vModel = "${mastTableModel.vModel}")
+							#if($vModel)
+					$!{vModel} : {},
+							#end
+						#end
+					#end
+				},
+				maskConfig:{
+					#foreach($html in ${context.fields})
+						#set($fieLdsModel = $html.formColumnModel.fieLdsModel)
+						#maskConfig($fieLdsModel,'')
+					#end
+					#foreach($masetkey in $mastTableList.entrySet())
+						#set($fieldsAll = $masetkey.value)
+						#foreach($html in ${fieldsAll})
+							#set($fieLdsModel = $html.formMastTableModel.mastTable.fieLdsModel)
+							#maskConfig($fieLdsModel,'')
+						#end
+					#end
+					#foreach($child in ${context.children})
+						#set($className = "${child.className}")
+						#foreach($childList in ${child.childList})
+							#set($fieLdsModel = $childList.fieLdsModel)
+							#maskConfig($fieLdsModel,$className)
+						#end
+					#end
+				},
+                labelwidth:${context.labelWidth}*1.5,
+                menuId:'',
+				btnList:[],
+				idList:[],
+                ruleList:{},
+				childIndex:-1,
+				content:'',
+				title:'',
+				show:false,
+            }
+        },
+        onLoad(option) {
+        	this.menuId=option.menuId
+        	this.btnList=option.btnList.split(",")
+			uni.setNavigationBarTitle({
+				title: this.$t('common.detailText','详情')
+			})
+            this.${context.formModel}.${pKeyName} = option.id || 0
+			this.idList = option.idList?option.idList.split(","):[]
+            this.initData()
+			uni.$on('refresh', () => {
+				#foreach($fieLdsModel in ${context.form})
+					#set($jnpfkey = "${fieLdsModel.jnpfKey}")
+					#set($isEnd = "${fieLdsModel.isEnd}")
+					#set($formModel = ${fieLdsModel.formModel})
+					#set($model = "${formModel.model}")
+					#set($outermost = ${formModel.outermost})
+					#set($children = ${formModel.children})
+					#if(${layoutList.contains($jnpfkey)})
+						#if(${isEnd}=='0')
+							#if(${outermost}=='0')
+								#if($jnpfkey=='collapse')
+				this.${model}active=#if($formModel.accordion) '${formModel.active}' #else ${formModel.active}  #end
+								#end
+				this.${model}Current=${formModel.activeIndex}
+							#end
+						#end
+					#end
+				#end
+				//执行接口更新数据
+				this.initData()
+			})
+			uni.$on('initCollapse', () => {
+				//初始化折叠面板高度高度
+				this.collapse()
+			})
+        },
+		beforeDestroy() {
+			uni.$off('refresh')
+		},
+        onReady() {
+            #set($rulesAll = "this."+${context.formRules})
+            this.$refs.${context.formModel}.setRules(${rulesAll});
+        },
+		onShow(){
+			this.collapse()
+		},
+        watch:{
+        	dataForm: {
+				handler(val, oldVal) {
+				#foreach($child in ${context.children})
+					#set($className = "${child.className}")
+					this.${className}()
+				#end
+				},
+				deep: true
+			}
+        },
+        methods:{
+            getParamList(key) {
+		  		let templateJson = this.interfaceRes[key];
+				if (!templateJson || !templateJson.length || !this.dataForm) return templateJson;
+			 	for (let i = 0; i < templateJson.length; i++) {
+					if (templateJson[i].relationField && templateJson[i].sourceType == 1) {
+				  		templateJson[i].defaultValue = this.dataForm[templateJson[i].relationField + '_id'] || '';
+					}
+			  }
+			  return templateJson;
+			},
+			#foreach($html in ${context.fields})
+				#set($fieLdsModel = $html.formColumnModel.fieLdsModel)
+				#extraData($fieLdsModel,'','data')
+			#end
+			#foreach($masetkey in $mastTableList.entrySet())
+				#set($fieldsAll = $masetkey.value)
+				#foreach($html in ${fieldsAll})
+					#set($fieLdsModel = $html.formMastTableModel.mastTable.fieLdsModel)
+					#extraData($fieLdsModel,'','data')
+				#end
+			#end
+			doPreviewImage(url,imagesList) {
+				const images = imagesList.map(item => this.define.baseURL + item.url);
+				uni.previewImage({
+					urls: images,
+					current: url,
+					success: () => {},
+					fail: () => {
+						uni.showToast({
+							title: '预览图片失败',
+							icon: 'none'
+						});
+					}
+				});
+			},
+			onCollapseChange() {
+				uni.$emit('initCollapse')
+			},
+			toDetail(id, modelId) {
+				if (!id) return
+				let config = {
+					modelId: modelId,
+					id: id,
+					formTitle: this.$t('common.detailText','详情'),
+					noShowBtn: 1,
+					noDataLog: 1,
+				}
+				this.$nextTick(() => {
+					const url ='/pages/apply/dynamicModel/detail?config=' + this.jnpf.base64.encode(JSON.stringify(config),"UTF-8")
+					uni.navigateTo({
+						url: url
+					})
+				})
+			},
+			clickIcon(label,tipLabel) {
+				this.content = tipLabel
+				this.title = label
+				this.show = true
+			},
+        	checkChildRule() {
+				let title = [];
+				let _ruleList = this.ruleList
+				for (let k in _ruleList) {
+					let childData = this.${context.formModel}[k]
+					childData.forEach((item, index) => {
+						for (let model in _ruleList[k]) {
+							if (item[model] instanceof Array) {
+								if (item[model].length == 0) {
+									title.push(_ruleList[k][model])
+								}
+							} else if (!item[model]) {
+								title.push(_ruleList[k][model])
+							}
+						}
+					})
+				}
+				if (title.length > 0) {
+					return title[0]
+				}
+			},
+			resetForm(){
+				uni.navigateBack()
+			},
+			dataAll(){
+			},
+            #foreach($child in ${context.children})
+				#set($tableModel = "${child.tableModel}")
+				#set($className = "${child.className}")
+			${className}(){
+				let table = this.${context.formModel}.${tableModel}
+				let summaryField =${child.summaryField}
+				let summaryFieldName =${child.summaryFieldName}
+				#if($useFormPermission)
+				for(let i=0;i<summaryField.length;i++){
+					if(!this.${setPermission}.hasFormP("${tableModel}-"+summaryField[i],this.menuId)){
+						summaryField.splice(i)
+					}
+				}
+				#end
+				let data ={}
+				if(!table) return data
+				let thousandsField = ${child.thousandsField}
+				for (let i in summaryField) {
+					let map = {}
+					let val = 0
+					for (let j = 0; j < table.length; j++) {
+						let summary = table[j][summaryField[i]];
+						if (summary) {
+							let data = isNaN(summary) ? 0 :	Number(summary)
+							val += data
+						}
+					}
+					map.id = summaryField[i];
+					map.name = summaryFieldName[summaryField[i]+"_i18n"] ? this.$t(summaryFieldName[summaryField[i]+"_i18n"]):summaryFieldName[summaryField[i]];
+					map.val = (thousandsField.includes(summaryField[i]))? Number(val).toLocaleString('zh', {
+						maximumFractionDigits: '2',
+						minimumFractionDigits: '2'
+					}):  val.toFixed(2);
+					data[summaryField[i]]=map;
+				}
+				return data;
+			},
+            #end
+			#foreach($fieLdsModel in ${context.form})
+				#set($jnpfkey = "${fieLdsModel.jnpfKey}")
+				#set($isEnd = "${fieLdsModel.isEnd}")
+				#set($formModel = ${fieLdsModel.formModel})
+				#set($outermost = ${formModel.outermost})
+				#if($jnpfkey=='tab' || $jnpfkey=='steps')
+					#if(${isEnd}=='0')
+						#if(${outermost}=='0')
+			${formModel.model}(index) {
+				this.${formModel.model}Current = index;
+				this.timeKey = +new Date()
+				#if($jnpfkey=='tab')
+				this.collapse()
+				setTimeout(() => {
+					uni.$emit('initCollapse')
+				}, 1000)
+				#end
+			},
+						#end
+					#end
+				#end
+			#end
+            initData(){
+            	#set($nextTick='$'+"nextTick")
+				this.$nextTick(function(){
+					if (this.${context.formModel}.${pKeyName}) {
+						this.loading = true
+						request({
+							url: '/api/${context.module}/${context.className}/'+'detail/'+this.${context.formModel}.${pKeyName},
+							method: 'get',
+						}).then(res => {
+							this.dataInfo(res.data)
+							this.loading = false
+						})
+					}
+				})
+            },
+            submitForm(){
+				uni.navigateTo({
+					url: "./form?menuId=" + this.menuId + "&jurisdictionType=btn_edit&id="+this.${context.formModel}.${pKeyName}+"&idList="+this.idList
+				})
+            },
+            selfInit() {
+                this.$store.commit('base/UPDATE_RELATION_DATA', {})
+            },
+			dataInfo(dataAll){
+				let _dataAll =dataAll
+				this.${context.formModel}=_dataAll
+				#foreach($html in ${context.fields})
+					#set($fieLdsModel = $html.formColumnModel.fieLdsModel)
+				#extraData($fieLdsModel,'','')
+				#end
+				#foreach($masetkey in $mastTableList.entrySet())
+					#set($fieldsAll = $masetkey.value)
+					#foreach($html in ${fieldsAll})
+						#set($fieLdsModel = $html.formMastTableModel.mastTable.fieLdsModel)
+				#extraData($fieLdsModel,'','')
+					#end
+				#end
+				this.collapse()
+			},
+			collapse(){
+				setTimeout(()=> {
+					#foreach($fieLdsModel in ${context.form})
+						#set($jnpfkey = "${fieLdsModel.jnpfKey}")
+						#set($isEnd = "${fieLdsModel.isEnd}")
+						#set($formModel = ${fieLdsModel.formModel})
+						#set($outermost = ${formModel.outermost})
+						#set($config=$formModel.config)
+						#if(${layoutList.contains($jnpfkey)})
+							#if(${config.app}==true)
+								#if(${isEnd}=='0')
+									#if(${outermost}=='0')
+										this.$refs.${formModel.model}Current && this.$refs.${formModel.model}Current.init()
+									#end
+								#end
+							#end
+						#end
+					#end
+				}, 1000);
+			},
+		},
+    }
+
+</script>
+<style>
+	page{
+		background-color: #f0f2f6;
+	}
+</style>

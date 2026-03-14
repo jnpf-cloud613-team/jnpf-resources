@@ -1,0 +1,20 @@
+<script lang="ts" setup>
+    import { onMounted } from 'vue';
+    import { usePopup } from '@jnpf/ui/popup';
+    import FormPopup from './FormPopup.vue';
+
+    const [registerFormPopup, { openPopup: openFormPopup }] = usePopup();
+
+    function init() {
+        openFormPopup(true, {});
+    }
+
+    onMounted(() => {
+        init();
+    });
+</script>
+<template>
+  <div class="jnpf-content-wrapper bg-white">
+    <FormPopup @register="registerFormPopup" />
+  </div>
+</template>
